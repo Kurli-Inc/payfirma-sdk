@@ -2,14 +2,14 @@ module.exports = {
   parser: '@typescript-eslint/parser',
   extends: [
     'eslint:recommended',
-    '@typescript-eslint/recommended',
-    'prettier'
+    'plugin:@typescript-eslint/recommended',
+    'prettier',
   ],
   plugins: ['@typescript-eslint', 'prettier'],
   parserOptions: {
     ecmaVersion: 2020,
     sourceType: 'module',
-    project: './tsconfig.json'
+    project: './tsconfig.json',
   },
   rules: {
     'prettier/prettier': 'error',
@@ -19,10 +19,10 @@ module.exports = {
     '@typescript-eslint/no-non-null-assertion': 'error',
     '@typescript-eslint/prefer-nullish-coalescing': 'error',
     '@typescript-eslint/prefer-optional-chain': 'error',
-    'no-console': 'warn'
+    'no-console': 'warn',
   },
   env: {
     node: true,
-    es2020: true
-  }
-}; 
+    es2020: true,
+  },
+};

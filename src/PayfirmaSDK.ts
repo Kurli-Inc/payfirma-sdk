@@ -11,12 +11,12 @@ import {
   TransactionService,
   InvoiceService,
   TerminalService,
-  EFTService
+  EFTService,
 } from './services';
 
 /**
  * Main Payfirma SDK class
- * 
+ *
  * @example
  * ```typescript
  * const sdk = new PayfirmaSDK({
@@ -24,10 +24,10 @@ import {
  *   clientSecret: 'your-client-secret',
  *   sandbox: true
  * });
- * 
+ *
  * // Initialize authentication
  * await sdk.initialize();
- * 
+ *
  * // Use the services
  * const customer = await sdk.customers.createCustomer({
  *   email: 'customer@example.com',
@@ -69,7 +69,10 @@ export class PayfirmaSDK {
     // Initialize all other services
     this.customers = new CustomerService(this.environment, this.authService);
     this.plans = new PlanService(this.environment, this.authService);
-    this.transactions = new TransactionService(this.environment, this.authService);
+    this.transactions = new TransactionService(
+      this.environment,
+      this.authService
+    );
     this.invoices = new InvoiceService(this.environment, this.authService);
     this.terminals = new TerminalService(this.environment, this.authService);
     this.eft = new EFTService(this.environment, this.authService);
@@ -121,7 +124,7 @@ export class PayfirmaSDK {
   updateConfig(newConfig: Partial<PayfirmaSDKConfig>): void {
     this.validateConfig({ ...this.config, ...newConfig });
     this.config = { ...this.config, ...newConfig };
-    
+
     // Update environment if sandbox setting changed
     if (newConfig.sandbox !== undefined) {
       this.environment = this.getEnvironment(newConfig.sandbox);
@@ -131,17 +134,21 @@ export class PayfirmaSDK {
   /**
    * Set custom credentials for partner integrations
    */
-  setCredentials(accessToken: string, refreshToken?: string, expiresAt?: number): void {
+  setCredentials(
+    accessToken: string,
+    refreshToken?: string,
+    expiresAt?: number
+  ): void {
     const credentials: any = {
       access_token: accessToken,
-      expires_at: expiresAt || Date.now() + (12 * 60 * 60 * 1000), // Default 12 hours
-      scope: ['ecom', 'invoice', 'terminal', 'eft']
+      expires_at: expiresAt || Date.now() + 12 * 60 * 60 * 1000, // Default 12 hours
+      scope: ['ecom', 'invoice', 'terminal', 'eft'],
     };
-    
+
     if (refreshToken !== undefined) {
       credentials.refresh_token = refreshToken;
     }
-    
+
     this.authService.setCredentials(credentials);
     this.initialized = true;
   }
@@ -149,7 +156,11 @@ export class PayfirmaSDK {
   /**
    * Get authorization URL for OAuth flow
    */
-  getAuthorizationUrl(redirectUri: string, state?: string, scopes?: string[]): string {
+  getAuthorizationUrl(
+    redirectUri: string,
+    state?: string,
+    scopes?: string[]
+  ): string {
     return this.authService.getAuthorizationUrl(redirectUri, state, scopes);
   }
 
@@ -193,24 +204,24 @@ export class PayfirmaSDK {
     if (!credentials) {
       return {
         isAuthenticated: false,
-        tokenValid: false
+        tokenValid: false,
       };
     }
 
     const validation = this.authService.validateToken();
     const result: any = {
       isAuthenticated: true,
-      tokenValid: validation.valid
+      tokenValid: validation.valid,
     };
-    
+
     if (validation.expires_at !== undefined) {
       result.expiresAt = validation.expires_at;
     }
-    
+
     if (validation.needs_refresh !== undefined) {
       result.needsRefresh = validation.needs_refresh;
     }
-    
+
     return result;
   }
 
@@ -227,7 +238,9 @@ export class PayfirmaSDK {
     }
 
     if (config.timeout && (config.timeout < 1000 || config.timeout > 300000)) {
-      throw new ConfigurationError('Timeout must be between 1000ms and 300000ms');
+      throw new ConfigurationError(
+        'Timeout must be between 1000ms and 300000ms'
+      );
     }
   }
 
@@ -237,16 +250,20 @@ export class PayfirmaSDK {
   private getEnvironment(sandbox: boolean): Environment {
     if (sandbox) {
       return {
-        authUrl: this.config.apiUrls?.auth || 'https://sandbox-auth.payfirma.com',
-        gatewayUrl: this.config.apiUrls?.gateway || 'https://sandbox-apigateway.payfirma.com',
-        name: 'sandbox'
+        authUrl:
+          this.config.apiUrls?.auth || 'https://sandbox-auth.payfirma.com',
+        gatewayUrl:
+          this.config.apiUrls?.gateway ||
+          'https://sandbox-apigateway.payfirma.com',
+        name: 'sandbox',
       };
     }
 
     return {
       authUrl: this.config.apiUrls?.auth || 'https://auth.payfirma.com',
-      gatewayUrl: this.config.apiUrls?.gateway || 'https://apigateway.payfirma.com',
-      name: 'production'
+      gatewayUrl:
+        this.config.apiUrls?.gateway || 'https://apigateway.payfirma.com',
+      name: 'production',
     };
   }
 
@@ -264,7 +281,7 @@ export class PayfirmaSDK {
     return new PayfirmaSDK({
       clientId,
       clientSecret,
-      sandbox: true
+      sandbox: true,
     });
   }
 
@@ -275,7 +292,7 @@ export class PayfirmaSDK {
     return new PayfirmaSDK({
       clientId,
       clientSecret,
-      sandbox: false
+      sandbox: false,
     });
   }
-} 
+}

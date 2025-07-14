@@ -7,12 +7,21 @@ import { Currency, ContactInfo, Address } from './common';
 /**
  * Terminal transaction types
  */
-export type TerminalTransactionType = 'SALE' | 'REFUND' | 'AUTHORIZATION' | 'CAPTURE';
+export type TerminalTransactionType =
+  | 'SALE'
+  | 'REFUND'
+  | 'AUTHORIZATION'
+  | 'CAPTURE';
 
 /**
  * Terminal transaction status
  */
-export type TerminalTransactionStatus = 'APPROVED' | 'DECLINED' | 'PENDING' | 'CANCELLED' | 'FAILED';
+export type TerminalTransactionStatus =
+  | 'APPROVED'
+  | 'DECLINED'
+  | 'PENDING'
+  | 'CANCELLED'
+  | 'FAILED';
 
 /**
  * Terminal sale request with customer lookup
@@ -35,7 +44,9 @@ export interface TerminalSaleWithCustomerRequest {
 /**
  * Terminal sale request without customer lookup
  */
-export interface TerminalSaleRequest extends Partial<ContactInfo>, Partial<Address> {
+export interface TerminalSaleRequest
+  extends Partial<ContactInfo>,
+    Partial<Address> {
   /** Transaction amount */
   amount: number;
   /** Currency code */
@@ -67,7 +78,9 @@ export interface TerminalRefundRequest {
 /**
  * Terminal authorization request
  */
-export interface TerminalAuthorizationRequest extends Partial<ContactInfo>, Partial<Address> {
+export interface TerminalAuthorizationRequest
+  extends Partial<ContactInfo>,
+    Partial<Address> {
   /** Authorization amount */
   amount: number;
   /** Currency code */
@@ -115,10 +128,11 @@ export interface TerminalTransaction {
   /** Transaction timestamp */
   created_at: string;
   /** Customer information */
-  customer?: ContactInfo & Address & {
-    /** Customer lookup ID if stored */
-    customer_lookup_id?: string;
-  };
+  customer?: ContactInfo &
+    Address & {
+      /** Customer lookup ID if stored */
+      customer_lookup_id?: string;
+    };
   /** Card information (masked) */
   card?: {
     /** Card type */
@@ -168,4 +182,4 @@ export interface TerminalConfig {
     /** Timeout settings */
     timeout: number;
   };
-} 
+}

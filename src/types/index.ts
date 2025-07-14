@@ -10,4 +10,4 @@ export * from './transaction';
 export * from './invoice';
 export * from './terminal';
 export * from './eft';
-export * from './errors'; 
+export * from './errors';

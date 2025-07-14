@@ -11,17 +11,17 @@ export enum PayfirmaErrorCode {
   TOKEN_EXPIRED = 'TOKEN_EXPIRED',
   INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
   INSUFFICIENT_SCOPE = 'INSUFFICIENT_SCOPE',
-  
+
   // Network errors
   NETWORK_ERROR = 'NETWORK_ERROR',
   TIMEOUT_ERROR = 'TIMEOUT_ERROR',
   REQUEST_FAILED = 'REQUEST_FAILED',
-  
+
   // API errors
   API_ERROR = 'API_ERROR',
   RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED',
   SERVICE_UNAVAILABLE = 'SERVICE_UNAVAILABLE',
-  
+
   // Validation errors
   VALIDATION_ERROR = 'VALIDATION_ERROR',
   REQUIRED_FIELD_MISSING = 'REQUIRED_FIELD_MISSING',
@@ -31,7 +31,7 @@ export enum PayfirmaErrorCode {
   INVALID_CARD_NUMBER = 'INVALID_CARD_NUMBER',
   INVALID_EXPIRY_DATE = 'INVALID_EXPIRY_DATE',
   INVALID_CVV = 'INVALID_CVV',
-  
+
   // Business logic errors
   INSUFFICIENT_FUNDS = 'INSUFFICIENT_FUNDS',
   CARD_DECLINED = 'CARD_DECLINED',
@@ -41,19 +41,19 @@ export enum PayfirmaErrorCode {
   INVOICE_NOT_FOUND = 'INVOICE_NOT_FOUND',
   CARD_NOT_FOUND = 'CARD_NOT_FOUND',
   SUBSCRIPTION_NOT_FOUND = 'SUBSCRIPTION_NOT_FOUND',
-  
+
   // Payment processing errors
   PAYMENT_DECLINED = 'PAYMENT_DECLINED',
   PAYMENT_FAILED = 'PAYMENT_FAILED',
   DUPLICATE_TRANSACTION = 'DUPLICATE_TRANSACTION',
   REFUND_FAILED = 'REFUND_FAILED',
   CAPTURE_FAILED = 'CAPTURE_FAILED',
-  
+
   // Configuration errors
   INVALID_CONFIGURATION = 'INVALID_CONFIGURATION',
   SANDBOX_ONLY = 'SANDBOX_ONLY',
   PRODUCTION_ONLY = 'PRODUCTION_ONLY',
-  
+
   // Unknown errors
   UNKNOWN_ERROR = 'UNKNOWN_ERROR',
 }
@@ -88,7 +88,7 @@ export class PayfirmaError extends Error {
     this.details = details;
     this.requestId = requestId;
     this.cause = cause;
-    
+
     // Maintains proper stack trace for where our error was thrown (Node.js only)
     if (typeof (Error as any).captureStackTrace === 'function') {
       (Error as any).captureStackTrace(this, PayfirmaError);
@@ -100,8 +100,20 @@ export class PayfirmaError extends Error {
  * Authentication related errors
  */
 export class AuthenticationError extends PayfirmaError {
-  constructor(message: string, details?: any, requestId?: string, cause?: Error) {
-    super(message, PayfirmaErrorCode.AUTHENTICATION_FAILED, 401, details, requestId, cause);
+  constructor(
+    message: string,
+    details?: any,
+    requestId?: string,
+    cause?: Error
+  ) {
+    super(
+      message,
+      PayfirmaErrorCode.AUTHENTICATION_FAILED,
+      401,
+      details,
+      requestId,
+      cause
+    );
     this.name = 'AuthenticationError';
   }
 }
@@ -111,7 +123,14 @@ export class AuthenticationError extends PayfirmaError {
  */
 export class NetworkError extends PayfirmaError {
   constructor(message: string, cause?: Error, requestId?: string) {
-    super(message, PayfirmaErrorCode.NETWORK_ERROR, undefined, undefined, requestId, cause);
+    super(
+      message,
+      PayfirmaErrorCode.NETWORK_ERROR,
+      undefined,
+      undefined,
+      requestId,
+      cause
+    );
     this.name = 'NetworkError';
   }
 }
@@ -162,7 +181,13 @@ export class PaymentError extends PayfirmaError {
  */
 export class NotFoundError extends PayfirmaError {
   constructor(message: string, resourceType: string, requestId?: string) {
-    super(message, PayfirmaErrorCode.TRANSACTION_NOT_FOUND, 404, { resourceType }, requestId);
+    super(
+      message,
+      PayfirmaErrorCode.TRANSACTION_NOT_FOUND,
+      404,
+      { resourceType },
+      requestId
+    );
     this.name = 'NotFoundError';
   }
 }
@@ -185,11 +210,17 @@ export class RateLimitError extends PayfirmaError {
     window?: number,
     requestId?: string
   ) {
-    super(message, PayfirmaErrorCode.RATE_LIMIT_EXCEEDED, 429, {
-      resetAt,
-      remaining,
-      window,
-    }, requestId);
+    super(
+      message,
+      PayfirmaErrorCode.RATE_LIMIT_EXCEEDED,
+      429,
+      {
+        resetAt,
+        remaining,
+        window,
+      },
+      requestId
+    );
     this.name = 'RateLimitError';
     this.resetAt = resetAt;
     this.remaining = remaining;
@@ -232,51 +263,78 @@ export class ErrorFactory {
   /**
    * Create an error from an API response
    */
-  static fromApiResponse(response: ErrorResponse, cause?: Error): PayfirmaError {
+  static fromApiResponse(
+    response: ErrorResponse,
+    cause?: Error
+  ): PayfirmaError {
     const { code, message, status, details, request_id } = response;
-    
+
     // Map API error codes to our error types
     switch (code) {
       case 'AUTHENTICATION_FAILED':
       case 'TOKEN_EXPIRED':
       case 'INVALID_CREDENTIALS':
         return new AuthenticationError(message, details, request_id, cause);
-      
+
       case 'VALIDATION_ERROR':
       case 'REQUIRED_FIELD_MISSING':
       case 'INVALID_FORMAT':
         return new ValidationError(message, details, request_id);
-      
+
       case 'PAYMENT_DECLINED':
       case 'PAYMENT_FAILED':
       case 'CARD_DECLINED':
-        return new PaymentError(message, code as PayfirmaErrorCode, details, request_id);
-      
+        return new PaymentError(
+          message,
+          code as PayfirmaErrorCode,
+          details,
+          request_id
+        );
+
       case 'RATE_LIMIT_EXCEEDED':
-        return new RateLimitError(message, undefined, undefined, undefined, request_id);
-      
+        return new RateLimitError(
+          message,
+          undefined,
+          undefined,
+          undefined,
+          request_id
+        );
+
       case 'TRANSACTION_NOT_FOUND':
       case 'CUSTOMER_NOT_FOUND':
       case 'PLAN_NOT_FOUND':
       case 'INVOICE_NOT_FOUND':
-        return new NotFoundError(message, code.replace('_NOT_FOUND', ''), request_id);
-      
+        return new NotFoundError(
+          message,
+          code.replace('_NOT_FOUND', ''),
+          request_id
+        );
+
       default:
-        return new ApiError(message, status || 500, code as PayfirmaErrorCode, details, request_id);
+        return new ApiError(
+          message,
+          status || 500,
+          code as PayfirmaErrorCode,
+          details,
+          request_id
+        );
     }
   }
-  
+
   /**
    * Create a network error
    */
   static networkError(message: string, cause?: Error): NetworkError {
     return new NetworkError(message, cause);
   }
-  
+
   /**
    * Create a configuration error
    */
-  static configurationError(message: string, details?: any): ConfigurationError {
+  static configurationError(
+    message: string,
+    details?: any
+  ): ConfigurationError {
     return new ConfigurationError(message, details);
   }
-} 
+}

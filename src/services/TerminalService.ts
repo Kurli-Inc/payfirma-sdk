@@ -12,7 +12,7 @@ import {
   TerminalRefundRequest,
   TerminalAuthorizationRequest,
   TerminalCaptureRequest,
-  TerminalConfig
+  TerminalConfig,
 } from '../types/terminal';
 import { ErrorFactory, PayfirmaError } from '../types/errors';
 
@@ -25,27 +25,29 @@ export class TerminalService {
 
   constructor(environment: Environment, authService: AuthService) {
     this.authService = authService;
-    
+
     this.httpClient = axios.create({
       baseURL: `${environment.gatewayUrl}/terminal-service`,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'Payfirma-SDK-TypeScript/1.0.0'
-      }
+        'User-Agent': 'Payfirma-SDK-TypeScript/1.0.0',
+      },
     });
 
     // Add request interceptor to include auth header
-    this.httpClient.interceptors.request.use(async (config) => {
+    this.httpClient.interceptors.request.use(async config => {
       const authHeader = await this.authService.getAuthHeader();
-      config.headers = { ...config.headers, ...authHeader };
+      if (config.headers) {
+        config.headers['Authorization'] = authHeader.Authorization;
+      }
       return config;
     });
 
     // Add response interceptor to handle errors
     this.httpClient.interceptors.response.use(
-      (response) => response,
-      (error) => {
+      response => response,
+      error => {
         throw this.handleError(error);
       }
     );
@@ -54,8 +56,13 @@ export class TerminalService {
   /**
    * Process a sale using customer lookup
    */
-  async saleWithCustomer(request: TerminalSaleWithCustomerRequest): Promise<TerminalTransaction> {
-    const response = await this.httpClient.post<TerminalTransaction>('/sale/customer', request);
+  async saleWithCustomer(
+    request: TerminalSaleWithCustomerRequest
+  ): Promise<TerminalTransaction> {
+    const response = await this.httpClient.post<TerminalTransaction>(
+      '/sale/customer',
+      request
+    );
     return response.data;
   }
 
@@ -63,7 +70,10 @@ export class TerminalService {
    * Process a sale without customer lookup
    */
   async sale(request: TerminalSaleRequest): Promise<TerminalTransaction> {
-    const response = await this.httpClient.post<TerminalTransaction>('/sale', request);
+    const response = await this.httpClient.post<TerminalTransaction>(
+      '/sale',
+      request
+    );
     return response.data;
   }
 
@@ -71,15 +81,23 @@ export class TerminalService {
    * Process a refund
    */
   async refund(request: TerminalRefundRequest): Promise<TerminalTransaction> {
-    const response = await this.httpClient.post<TerminalTransaction>('/refund', request);
+    const response = await this.httpClient.post<TerminalTransaction>(
+      '/refund',
+      request
+    );
     return response.data;
   }
 
   /**
    * Authorize a card (hold funds)
    */
-  async authorize(request: TerminalAuthorizationRequest): Promise<TerminalTransaction> {
-    const response = await this.httpClient.post<TerminalTransaction>('/authorize', request);
+  async authorize(
+    request: TerminalAuthorizationRequest
+  ): Promise<TerminalTransaction> {
+    const response = await this.httpClient.post<TerminalTransaction>(
+      '/authorize',
+      request
+    );
     return response.data;
   }
 
@@ -90,7 +108,10 @@ export class TerminalService {
     transactionId: string,
     request: TerminalCaptureRequest
   ): Promise<TerminalTransaction> {
-    const response = await this.httpClient.post<TerminalTransaction>(`/capture/${transactionId}`, request);
+    const response = await this.httpClient.post<TerminalTransaction>(
+      `/capture/${transactionId}`,
+      request
+    );
     return response.data;
   }
 
@@ -98,7 +119,9 @@ export class TerminalService {
    * Get terminal transaction details
    */
   async getTransaction(transactionId: string): Promise<TerminalTransaction> {
-    const response = await this.httpClient.get<TerminalTransaction>(`/transaction/${transactionId}`);
+    const response = await this.httpClient.get<TerminalTransaction>(
+      `/transaction/${transactionId}`
+    );
     return response.data;
   }
 
@@ -106,7 +129,9 @@ export class TerminalService {
    * Get terminal configuration
    */
   async getTerminalConfig(terminalId: string): Promise<TerminalConfig> {
-    const response = await this.httpClient.get<TerminalConfig>(`/terminal/${terminalId}/config`);
+    const response = await this.httpClient.get<TerminalConfig>(
+      `/terminal/${terminalId}/config`
+    );
     return response.data;
   }
 
@@ -117,7 +142,10 @@ export class TerminalService {
     terminalId: string,
     config: Partial<TerminalConfig>
   ): Promise<TerminalConfig> {
-    const response = await this.httpClient.put<TerminalConfig>(`/terminal/${terminalId}/config`, config);
+    const response = await this.httpClient.put<TerminalConfig>(
+      `/terminal/${terminalId}/config`,
+      config
+    );
     return response.data;
   }
 
@@ -130,7 +158,9 @@ export class TerminalService {
     last_activity: string;
     is_online: boolean;
   }> {
-    const response = await this.httpClient.get(`/terminal/${terminalId}/status`);
+    const response = await this.httpClient.get(
+      `/terminal/${terminalId}/status`
+    );
     return response.data;
   }
 
@@ -153,7 +183,7 @@ export class TerminalService {
     return this.sale({
       terminal_id: terminalId,
       amount,
-      currency: currency as any
+      currency: currency as any,
     });
   }
 
@@ -168,7 +198,7 @@ export class TerminalService {
     return this.refund({
       terminal_id: terminalId,
       original_transaction_id: originalTransactionId,
-      amount
+      amount,
     });
   }
 
@@ -261,33 +291,45 @@ export class TerminalService {
   private handleError(error: any): PayfirmaError {
     if (error.response) {
       const { status, data } = error.response;
-      
-      if (data && data.error) {
-        return ErrorFactory.fromApiResponse({
-          code: data.error,
-          message: data.message || 'Terminal service error',
+
+      if (data?.error) {
+        return ErrorFactory.fromApiResponse(
+          {
+            code: data.error,
+            message: data.message || 'Terminal service error',
+            status,
+            details: data,
+            request_id: error.response.headers['x-request-id'],
+          },
+          error
+        );
+      }
+
+      return ErrorFactory.fromApiResponse(
+        {
+          code: 'API_ERROR',
+          message: `Terminal service error: ${status}`,
           status,
           details: data,
-          request_id: error.response.headers['x-request-id']
-        }, error);
-      }
-      
-      return ErrorFactory.fromApiResponse({
-        code: 'API_ERROR',
-        message: `Terminal service error: ${status}`,
-        status,
-        details: data,
-        request_id: error.response.headers['x-request-id']
-      }, error);
+          request_id: error.response.headers['x-request-id'],
+        },
+        error
+      );
     }
 
     if (error.request) {
-      return ErrorFactory.networkError('Network error in terminal service', error);
+      return ErrorFactory.networkError(
+        'Network error in terminal service',
+        error
+      );
     }
 
-    return ErrorFactory.fromApiResponse({
-      code: 'UNKNOWN_ERROR',
-      message: 'Unknown error in terminal service'
-    }, error);
+    return ErrorFactory.fromApiResponse(
+      {
+        code: 'UNKNOWN_ERROR',
+        message: 'Unknown error in terminal service',
+      },
+      error
+    );
   }
-} 
+}

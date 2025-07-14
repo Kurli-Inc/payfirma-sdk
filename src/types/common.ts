@@ -172,4 +172,4 @@ export interface ApiErrorDetails {
   details?: any;
   /** Request ID for tracking */
   request_id?: string;
-} 
+}

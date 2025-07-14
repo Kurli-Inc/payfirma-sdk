@@ -12,7 +12,7 @@ import {
   BankDepositRequest,
   EFTBalance,
   EFTTransactionListResponse,
-  EFTTransactionSearchParams
+  EFTTransactionSearchParams,
 } from '../types/eft';
 import { ErrorFactory, PayfirmaError } from '../types/errors';
 
@@ -25,27 +25,29 @@ export class EFTService {
 
   constructor(environment: Environment, authService: AuthService) {
     this.authService = authService;
-    
+
     this.httpClient = axios.create({
       baseURL: `${environment.gatewayUrl}/eft-service`,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'Payfirma-SDK-TypeScript/1.0.0'
-      }
+        'User-Agent': 'Payfirma-SDK-TypeScript/1.0.0',
+      },
     });
 
     // Add request interceptor to include auth header
-    this.httpClient.interceptors.request.use(async (config) => {
+    this.httpClient.interceptors.request.use(async config => {
       const authHeader = await this.authService.getAuthHeader();
-      config.headers = { ...config.headers, ...authHeader };
+      if (config.headers) {
+        config.headers['Authorization'] = authHeader.Authorization;
+      }
       return config;
     });
 
     // Add response interceptor to handle errors
     this.httpClient.interceptors.response.use(
-      (response) => response,
-      (error) => {
+      response => response,
+      error => {
         throw this.handleError(error);
       }
     );
@@ -63,7 +65,10 @@ export class EFTService {
    * Process an EFT debit (incoming funds)
    */
   async processDebit(request: EFTDebitRequest): Promise<EFTTransaction> {
-    const response = await this.httpClient.post<EFTTransaction>('/debit', request);
+    const response = await this.httpClient.post<EFTTransaction>(
+      '/debit',
+      request
+    );
     return response.data;
   }
 
@@ -71,7 +76,10 @@ export class EFTService {
    * Process an EFT credit (outgoing funds)
    */
   async processCredit(request: EFTCreditRequest): Promise<EFTTransaction> {
-    const response = await this.httpClient.post<EFTTransaction>('/credit', request);
+    const response = await this.httpClient.post<EFTTransaction>(
+      '/credit',
+      request
+    );
     return response.data;
   }
 
@@ -79,7 +87,10 @@ export class EFTService {
    * Make a bank deposit
    */
   async bankDeposit(request: BankDepositRequest): Promise<EFTTransaction> {
-    const response = await this.httpClient.post<EFTTransaction>('/deposit', request);
+    const response = await this.httpClient.post<EFTTransaction>(
+      '/deposit',
+      request
+    );
     return response.data;
   }
 
@@ -87,15 +98,22 @@ export class EFTService {
    * Get EFT transaction details
    */
   async getTransaction(transactionId: string): Promise<EFTTransaction> {
-    const response = await this.httpClient.get<EFTTransaction>(`/transaction/${transactionId}`);
+    const response = await this.httpClient.get<EFTTransaction>(
+      `/transaction/${transactionId}`
+    );
     return response.data;
   }
 
   /**
    * List EFT transactions with filtering
    */
-  async listTransactions(params?: EFTTransactionSearchParams): Promise<EFTTransactionListResponse> {
-    const response = await this.httpClient.get<EFTTransactionListResponse>('/transactions', { params });
+  async listTransactions(
+    params?: EFTTransactionSearchParams
+  ): Promise<EFTTransactionListResponse> {
+    const response = await this.httpClient.get<EFTTransactionListResponse>(
+      '/transactions',
+      { params }
+    );
     return response.data;
   }
 
@@ -124,7 +142,7 @@ export class EFTService {
   ): Promise<EFTTransaction[]> {
     const response = await this.listTransactions({
       start_date: startDate,
-      end_date: endDate
+      end_date: endDate,
     });
     return response.entities;
   }
@@ -138,7 +156,7 @@ export class EFTService {
   ): Promise<EFTTransaction[]> {
     const response = await this.listTransactions({
       amount_min: minAmount,
-      amount_max: maxAmount
+      amount_max: maxAmount,
     });
     return response.entities;
   }
@@ -202,8 +220,8 @@ export class EFTService {
         account_number: accountNumber,
         routing_number: routingNumber,
         account_type: 'CHECKING',
-        account_holder_name: accountHolderName
-      }
+        account_holder_name: accountHolderName,
+      },
     });
   }
 
@@ -224,8 +242,8 @@ export class EFTService {
         account_number: accountNumber,
         routing_number: routingNumber,
         account_type: 'CHECKING',
-        account_holder_name: accountHolderName
-      }
+        account_holder_name: accountHolderName,
+      },
     });
   }
 
@@ -246,8 +264,8 @@ export class EFTService {
         account_number: accountNumber,
         routing_number: routingNumber,
         account_type: 'CHECKING',
-        account_holder_name: accountHolderName
-      }
+        account_holder_name: accountHolderName,
+      },
     });
   }
 
@@ -261,21 +279,28 @@ export class EFTService {
     completed_today: number;
     failed_today: number;
   }> {
-    const [balance, recentTransactions, pendingTransactions] = await Promise.all([
-      this.getBalance(),
-      this.listTransactions({ limit: 10 }),
-      this.getPendingTransactions()
-    ]);
+    const [balance, recentTransactions, pendingTransactions] =
+      await Promise.all([
+        this.getBalance(),
+        this.listTransactions({ limit: 10 }),
+        this.getPendingTransactions(),
+      ]);
 
-    const today = new Date().toISOString().split('T')[0];
-    const todayTransactions = await this.getTransactionsByDateRange(today, today);
+    const today =
+      new Date().toISOString().split('T')[0] ||
+      new Date().toISOString().slice(0, 10);
+    const todayTransactions = await this.getTransactionsByDateRange(
+      today,
+      today
+    );
 
     return {
       balance,
       recent_transactions: recentTransactions.entities,
       pending_count: pendingTransactions.length,
-      completed_today: todayTransactions.filter(t => t.status === 'COMPLETED').length,
-      failed_today: todayTransactions.filter(t => t.status === 'FAILED').length
+      completed_today: todayTransactions.filter(t => t.status === 'COMPLETED')
+        .length,
+      failed_today: todayTransactions.filter(t => t.status === 'FAILED').length,
     };
   }
 
@@ -310,7 +335,7 @@ export class EFTService {
       debit_amount: debits.reduce((sum, t) => sum + t.amount, 0),
       credit_amount: credits.reduce((sum, t) => sum + t.amount, 0),
       deposit_amount: deposits.reduce((sum, t) => sum + t.amount, 0),
-      currency: transactions[0]?.currency || 'CAD'
+      currency: transactions[0]?.currency || 'CAD',
     };
   }
 
@@ -332,14 +357,21 @@ export class EFTService {
   /**
    * Validate bank account format
    */
-  validateBankAccount(accountNumber: string, routingNumber: string): {
+  validateBankAccount(
+    accountNumber: string,
+    routingNumber: string
+  ): {
     valid: boolean;
     errors: string[];
   } {
     const errors: string[] = [];
 
     // Basic validation for account number
-    if (!accountNumber || accountNumber.length < 4 || accountNumber.length > 17) {
+    if (
+      !accountNumber ||
+      accountNumber.length < 4 ||
+      accountNumber.length > 17
+    ) {
       errors.push('Account number must be between 4 and 17 digits');
     }
 
@@ -358,7 +390,7 @@ export class EFTService {
 
     return {
       valid: errors.length === 0,
-      errors
+      errors,
     };
   }
 
@@ -368,33 +400,42 @@ export class EFTService {
   private handleError(error: any): PayfirmaError {
     if (error.response) {
       const { status, data } = error.response;
-      
-      if (data && data.error) {
-        return ErrorFactory.fromApiResponse({
-          code: data.error,
-          message: data.message || 'EFT service error',
+
+      if (data?.error) {
+        return ErrorFactory.fromApiResponse(
+          {
+            code: data.error,
+            message: data.message || 'EFT service error',
+            status,
+            details: data,
+            request_id: error.response.headers['x-request-id'],
+          },
+          error
+        );
+      }
+
+      return ErrorFactory.fromApiResponse(
+        {
+          code: 'API_ERROR',
+          message: `EFT service error: ${status}`,
           status,
           details: data,
-          request_id: error.response.headers['x-request-id']
-        }, error);
-      }
-      
-      return ErrorFactory.fromApiResponse({
-        code: 'API_ERROR',
-        message: `EFT service error: ${status}`,
-        status,
-        details: data,
-        request_id: error.response.headers['x-request-id']
-      }, error);
+          request_id: error.response.headers['x-request-id'],
+        },
+        error
+      );
     }
 
     if (error.request) {
       return ErrorFactory.networkError('Network error in EFT service', error);
     }
 
-    return ErrorFactory.fromApiResponse({
-      code: 'UNKNOWN_ERROR',
-      message: 'Unknown error in EFT service'
-    }, error);
+    return ErrorFactory.fromApiResponse(
+      {
+        code: 'UNKNOWN_ERROR',
+        message: 'Unknown error in EFT service',
+      },
+      error
+    );
   }
-} 
+}

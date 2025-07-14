@@ -9,7 +9,7 @@ import {
   Plan,
   CreatePlanRequest,
   UpdatePlanRequest,
-  PlanListResponse
+  PlanListResponse,
 } from '../types/plan';
 import { ErrorFactory, PayfirmaError } from '../types/errors';
 
@@ -22,27 +22,29 @@ export class PlanService {
 
   constructor(environment: Environment, authService: AuthService) {
     this.authService = authService;
-    
+
     this.httpClient = axios.create({
       baseURL: `${environment.gatewayUrl}/plan-service`,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'Payfirma-SDK-TypeScript/1.0.0'
-      }
+        'User-Agent': 'Payfirma-SDK-TypeScript/1.0.0',
+      },
     });
 
     // Add request interceptor to include auth header
-    this.httpClient.interceptors.request.use(async (config) => {
+    this.httpClient.interceptors.request.use(async config => {
       const authHeader = await this.authService.getAuthHeader();
-      config.headers = { ...config.headers, ...authHeader };
+      if (config.headers) {
+        config.headers['Authorization'] = authHeader.Authorization;
+      }
       return config;
     });
 
     // Add response interceptor to handle errors
     this.httpClient.interceptors.response.use(
-      (response) => response,
-      (error) => {
+      response => response,
+      error => {
         throw this.handleError(error);
       }
     );
@@ -67,8 +69,14 @@ export class PlanService {
   /**
    * Update a plan
    */
-  async updatePlan(planLookupId: string, request: UpdatePlanRequest): Promise<Plan> {
-    const response = await this.httpClient.put<Plan>(`/plan/${planLookupId}`, request);
+  async updatePlan(
+    planLookupId: string,
+    request: UpdatePlanRequest
+  ): Promise<Plan> {
+    const response = await this.httpClient.put<Plan>(
+      `/plan/${planLookupId}`,
+      request
+    );
     return response.data;
   }
 
@@ -108,7 +116,7 @@ export class PlanService {
    */
   async searchPlansByName(name: string): Promise<Plan[]> {
     const response = await this.listPlans();
-    return response.entities.filter(plan => 
+    return response.entities.filter(plan =>
       plan.name.toLowerCase().includes(name.toLowerCase())
     );
   }
@@ -116,10 +124,13 @@ export class PlanService {
   /**
    * Get plans by amount range
    */
-  async getPlansByAmountRange(minAmount: number, maxAmount: number): Promise<Plan[]> {
+  async getPlansByAmountRange(
+    minAmount: number,
+    maxAmount: number
+  ): Promise<Plan[]> {
     const response = await this.listPlans();
-    return response.entities.filter(plan => 
-      plan.amount >= minAmount && plan.amount <= maxAmount
+    return response.entities.filter(
+      plan => plan.amount >= minAmount && plan.amount <= maxAmount
     );
   }
 
@@ -172,13 +183,13 @@ export class PlanService {
       amount,
       currency: currency as any,
       frequency: 'DAILY',
-      send_receipt: true
+      send_receipt: true,
     };
-    
+
     if (numberOfPayments !== undefined) {
       request.number_of_payments = numberOfPayments;
     }
-    
+
     return this.createPlan(request);
   }
 
@@ -196,13 +207,13 @@ export class PlanService {
       amount,
       currency: currency as any,
       frequency: 'WEEKLY',
-      send_receipt: true
+      send_receipt: true,
     };
-    
+
     if (numberOfPayments !== undefined) {
       request.number_of_payments = numberOfPayments;
     }
-    
+
     return this.createPlan(request);
   }
 
@@ -220,13 +231,13 @@ export class PlanService {
       amount,
       currency: currency as any,
       frequency: 'MONTHLY',
-      send_receipt: true
+      send_receipt: true,
     };
-    
+
     if (numberOfPayments !== undefined) {
       request.number_of_payments = numberOfPayments;
     }
-    
+
     return this.createPlan(request);
   }
 
@@ -244,13 +255,13 @@ export class PlanService {
       amount,
       currency: currency as any,
       frequency: 'YEARLY',
-      send_receipt: true
+      send_receipt: true,
     };
-    
+
     if (numberOfPayments !== undefined) {
       request.number_of_payments = numberOfPayments;
     }
-    
+
     return this.createPlan(request);
   }
 
@@ -273,7 +284,7 @@ export class PlanService {
       plansByFrequency: plans.reduce((acc: Record<string, number>, plan) => {
         acc[plan.frequency] = (acc[plan.frequency] || 0) + 1;
         return acc;
-      }, {})
+      }, {}),
     };
 
     return stats;
@@ -285,33 +296,42 @@ export class PlanService {
   private handleError(error: any): PayfirmaError {
     if (error.response) {
       const { status, data } = error.response;
-      
-      if (data && data.error) {
-        return ErrorFactory.fromApiResponse({
-          code: data.error,
-          message: data.message || 'Plan service error',
+
+      if (data?.error) {
+        return ErrorFactory.fromApiResponse(
+          {
+            code: data.error,
+            message: data.message || 'Plan service error',
+            status,
+            details: data,
+            request_id: error.response.headers['x-request-id'],
+          },
+          error
+        );
+      }
+
+      return ErrorFactory.fromApiResponse(
+        {
+          code: 'API_ERROR',
+          message: `Plan service error: ${status}`,
           status,
           details: data,
-          request_id: error.response.headers['x-request-id']
-        }, error);
-      }
-      
-      return ErrorFactory.fromApiResponse({
-        code: 'API_ERROR',
-        message: `Plan service error: ${status}`,
-        status,
-        details: data,
-        request_id: error.response.headers['x-request-id']
-      }, error);
+          request_id: error.response.headers['x-request-id'],
+        },
+        error
+      );
     }
 
     if (error.request) {
       return ErrorFactory.networkError('Network error in plan service', error);
     }
 
-    return ErrorFactory.fromApiResponse({
-      code: 'UNKNOWN_ERROR',
-      message: 'Unknown error in plan service'
-    }, error);
+    return ErrorFactory.fromApiResponse(
+      {
+        code: 'UNKNOWN_ERROR',
+        message: 'Unknown error in plan service',
+      },
+      error
+    );
   }
-} 
+}

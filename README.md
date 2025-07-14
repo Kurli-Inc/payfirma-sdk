@@ -13,6 +13,7 @@ A comprehensive TypeScript SDK for the Payfirma payment processing API. This SDK
 - 💰 **EFT Support** - Electronic funds transfer capabilities
 - 📊 **Comprehensive Reporting** - Transaction analytics and summaries
 - 🛡️ **Type Safety** - Full TypeScript support with detailed type definitions
+- 🐪 **camelCase Transformers** - Write JavaScript-friendly camelCase, automatically converted to API's snake_case
 - 🌐 **Environment Support** - Both sandbox and production environments
 - 📚 **Well Documented** - Extensive JSDoc comments and examples
 
@@ -31,7 +32,7 @@ import { PayfirmaSDK } from 'payfirma-sdk';
 const sdk = new PayfirmaSDK({
   clientId: 'your-client-id',
   clientSecret: 'your-client-secret',
-  sandbox: true // Use sandbox for testing
+  sandbox: true, // Use sandbox for testing
 });
 
 // Initialize authentication
@@ -39,12 +40,12 @@ await sdk.initialize();
 
 // Process a payment
 const transaction = await sdk.transactions.quickSale(
-  10.99,           // amount
+  10.99, // amount
   '4111111111111111', // card number
-  12,              // expiry month
-  25,              // expiry year
-  '123',           // CVV
-  'CAD'           // currency
+  12, // expiry month
+  25, // expiry year
+  '123', // CVV
+  'CAD' // currency
 );
 
 console.log('Transaction successful:', transaction.id);
@@ -59,7 +60,7 @@ const sdk = new PayfirmaSDK({
   clientId: 'your-client-id',
   clientSecret: 'your-client-secret',
   sandbox: true, // Optional: defaults to false
-  timeout: 30000 // Optional: request timeout in ms
+  timeout: 30000, // Optional: request timeout in ms
 });
 ```
 
@@ -70,7 +71,10 @@ const sdk = new PayfirmaSDK({
 const sandboxSDK = PayfirmaSDK.createSandbox('client-id', 'client-secret');
 
 // Production environment
-const productionSDK = PayfirmaSDK.createProduction('client-id', 'client-secret');
+const productionSDK = PayfirmaSDK.createProduction(
+  'client-id',
+  'client-secret'
+);
 ```
 
 ### Custom API URLs
@@ -81,9 +85,92 @@ const sdk = new PayfirmaSDK({
   clientSecret: 'your-client-secret',
   apiUrls: {
     auth: 'https://custom-auth.example.com',
-    gateway: 'https://custom-gateway.example.com'
-  }
+    gateway: 'https://custom-gateway.example.com',
+  },
 });
+```
+
+## camelCase Transformers
+
+The SDK automatically converts between JavaScript-friendly camelCase and the API's snake_case format. You can write all your code using standard JavaScript conventions, and the SDK handles the conversion seamlessly.
+
+### How it Works
+
+- **Requests**: camelCase properties are automatically converted to snake_case before being sent to the API
+- **Responses**: snake_case properties from the API are automatically converted to camelCase in your code
+- **Nested Objects**: Deep transformation works with nested objects and arrays
+- **Bi-directional**: Supports both request and response transformations
+
+### Example
+
+```typescript
+// You write JavaScript-friendly camelCase
+const customer = await sdk.customers.createCustomer({
+  firstName: 'John',
+  lastName: 'Doe',
+  emailAddress: 'john@example.com',
+  billingAddress: {
+    address1: '123 Main St',
+    postalCode: '12345',
+    phoneNumber: '555-1234',
+  },
+});
+
+// SDK automatically converts to snake_case for API:
+// {
+//   first_name: 'John',
+//   last_name: 'Doe',
+//   email_address: 'john@example.com',
+//   billing_address: {
+//     address1: '123 Main St',
+//     postal_code: '12345',
+//     phone_number: '555-1234'
+//   }
+// }
+
+// Response comes back as camelCase
+console.log(customer.firstName); // 'John'
+console.log(customer.lookupId); // 'cust_abc123'
+```
+
+### Supported Transformations
+
+- `firstName` ↔ `first_name`
+- `lastName` ↔ `last_name`
+- `emailAddress` ↔ `email_address`
+- `cardNumber` ↔ `card_number`
+- `expiryMonth` ↔ `expiry_month`
+- `customerLookupId` ↔ `customer_lookup_id`
+- `postalCode` ↔ `postal_code`
+- And many more...
+
+The transformation handles all common JavaScript naming patterns automatically.
+
+### Manual Transformers
+
+If you need to manually transform data (e.g., for custom API calls), you can import the transformer functions:
+
+```typescript
+import {
+  transformKeysToSnake,
+  transformKeysToCamel,
+} from 'payfirma-sdk/transformers';
+
+// Convert camelCase to snake_case
+const snakeCase = transformKeysToSnake({
+  firstName: 'John',
+  lastName: 'Doe',
+  emailAddress: 'john@example.com',
+});
+// Result: { first_name: 'John', last_name: 'Doe', email_address: 'john@example.com' }
+
+// Convert snake_case to camelCase
+const camelCase = transformKeysToCamel({
+  first_name: 'John',
+  last_name: 'Doe',
+  email_address: 'john@example.com',
+});
+// Result: { firstName: 'John', lastName: 'Doe', emailAddress: 'john@example.com' }
 ```
 
 ## Authentication
@@ -136,7 +223,7 @@ console.log('Token valid:', status.tokenValid);
 ```typescript
 // Quick sale with card details
 const transaction = await sdk.transactions.quickSale(
-  100.00,
+  100.0,
   '4111111111111111',
   12,
   25,
@@ -146,7 +233,7 @@ const transaction = await sdk.transactions.quickSale(
 
 // Sale with encrypted token
 const tokenTransaction = await sdk.transactions.saleWithToken(
-  100.00,
+  100.0,
   'encrypted-card-token',
   'USD'
 );
@@ -156,28 +243,28 @@ const tokenTransaction = await sdk.transactions.saleWithToken(
 
 ```typescript
 const transaction = await sdk.transactions.createSale({
-  amount: 100.00,
+  amount: 100.0,
   currency: 'CAD',
   card: {
-    card_number: '4111111111111111',
-    card_expiry_month: 12,
-    card_expiry_year: 25,
-    cvv2: '123'
+    cardNumber: '4111111111111111',
+    cardExpiryMonth: 12,
+    cardExpiryYear: 25,
+    cvv2: '123',
   },
   // Customer information
   email: 'customer@example.com',
-  first_name: 'John',
-  last_name: 'Doe',
+  firstName: 'John',
+  lastName: 'Doe',
   // Billing information
   address1: '123 Main St',
   city: 'Toronto',
   province: 'ON',
   country: 'CA',
-  postal_code: 'M5V 3A8',
+  postalCode: 'M5V 3A8',
   // Order details
-  order_id: 'ORDER-123',
+  orderId: 'ORDER-123',
   description: 'Product purchase',
-  send_receipt: true
+  sendReceipt: true,
 });
 ```
 
@@ -186,7 +273,7 @@ const transaction = await sdk.transactions.createSale({
 ```typescript
 // Create authorization (hold funds)
 const auth = await sdk.transactions.quickAuthorization(
-  100.00,
+  100.0,
   '4111111111111111',
   12,
   25,
@@ -197,7 +284,10 @@ const auth = await sdk.transactions.quickAuthorization(
 const capture = await sdk.transactions.captureFullAmount(auth.id);
 
 // Or capture partial amount
-const partialCapture = await sdk.transactions.capturePartialAmount(auth.id, 50.00);
+const partialCapture = await sdk.transactions.capturePartialAmount(
+  auth.id,
+  50.0
+);
 ```
 
 ### Refunds
@@ -209,7 +299,7 @@ const refund = await sdk.transactions.fullRefund(transactionId);
 // Partial refund
 const partialRefund = await sdk.transactions.partialRefund(
   transactionId,
-  25.00,
+  25.0,
   'Customer requested partial refund'
 );
 ```
@@ -221,16 +311,16 @@ const partialRefund = await sdk.transactions.partialRefund(
 ```typescript
 const customer = await sdk.customers.createCustomer({
   email: 'customer@example.com',
-  first_name: 'John',
-  last_name: 'Doe',
+  firstName: 'John',
+  lastName: 'Doe',
   company: 'Acme Corp',
   telephone: '555-123-4567',
   address1: '123 Main St',
   city: 'Toronto',
   province: 'ON',
   country: 'CA',
-  postal_code: 'M5V 3A8',
-  custom_id: 'CUSTOMER-123'
+  postalCode: 'M5V 3A8',
+  customId: 'CUSTOMER-123',
 });
 ```
 
@@ -238,27 +328,27 @@ const customer = await sdk.customers.createCustomer({
 
 ```typescript
 // Add a card to customer
-const card = await sdk.customers.addCard(customer.lookup_id, {
-  card_number: '4111111111111111',
-  card_expiry_month: 12,
-  card_expiry_year: 25,
+const card = await sdk.customers.addCard(customer.lookupId, {
+  cardNumber: '4111111111111111',
+  cardExpiryMonth: 12,
+  cardExpiryYear: 25,
   cvv2: '123',
-  is_default: true,
-  card_description: 'Primary Visa'
+  isDefault: true,
+  cardDescription: 'Primary Visa',
 });
 
 // Charge customer's default card
 const payment = await sdk.customers.chargeDefaultCard(
-  customer.lookup_id,
-  100.00,
+  customer.lookupId,
+  100.0,
   'CAD'
 );
 
 // Charge specific card
 const specificCardPayment = await sdk.customers.chargeCard(
-  customer.lookup_id,
-  card.lookup_id,
-  50.00,
+  customer.lookupId,
+  card.lookupId,
+  50.0,
   'CAD'
 );
 ```
@@ -267,7 +357,9 @@ const specificCardPayment = await sdk.customers.chargeCard(
 
 ```typescript
 // Search by email
-const customers = await sdk.customers.searchCustomersByEmail('customer@example.com');
+const customers = await sdk.customers.searchCustomersByEmail(
+  'customer@example.com'
+);
 
 // Search by name
 const namedCustomers = await sdk.customers.searchCustomersByName('John', 'Doe');
@@ -295,9 +387,9 @@ const customPlan = await sdk.plans.createPlan({
   amount: 9.99,
   currency: 'CAD',
   frequency: 'WEEKLY',
-  number_of_payments: 52,
-  send_receipt: true,
-  description: 'Weekly service subscription'
+  numberOfPayments: 52,
+  sendReceipt: true,
+  description: 'Weekly service subscription',
 });
 ```
 
@@ -305,32 +397,29 @@ const customPlan = await sdk.plans.createPlan({
 
 ```typescript
 // Create subscription for customer
-const subscription = await sdk.customers.createSubscription(
-  customer.lookup_id,
-  {
-    plan_lookup_id: plan.lookup_id,
-    card_lookup_id: card.lookup_id,
-    amount: 29.99, // Can override plan amount
-    start_date: Date.now(),
-    email: 'customer@example.com',
-    description: 'Premium subscription'
-  }
-);
+const subscription = await sdk.customers.createSubscription(customer.lookupId, {
+  planLookupId: plan.lookupId,
+  cardLookupId: card.lookupId,
+  amount: 29.99, // Can override plan amount
+  startDate: Date.now(),
+  email: 'customer@example.com',
+  description: 'Premium subscription',
+});
 
 // Update subscription
 const updatedSubscription = await sdk.customers.updateSubscription(
-  customer.lookup_id,
-  subscription.lookup_id,
+  customer.lookupId,
+  subscription.lookupId,
   {
     amount: 39.99,
-    status: 'ACTIVE'
+    status: 'ACTIVE',
   }
 );
 
 // Cancel subscription
 await sdk.customers.cancelSubscription(
-  customer.lookup_id,
-  subscription.lookup_id
+  customer.lookupId,
+  subscription.lookupId
 );
 ```
 
@@ -347,41 +436,41 @@ const invoice = await sdk.invoices.createSimpleInvoice(
     {
       description: 'Web Development',
       quantity: 10,
-      unit_price: 100.00
+      unitPrice: 100.0,
     },
     {
       description: 'Hosting',
       quantity: 1,
-      unit_price: 50.00
-    }
+      unitPrice: 50.0,
+    },
   ],
   '2024-02-15', // Due date
   {
     taxRate: 13, // 13% tax
-    notes: 'Thanks for your business!'
+    notes: 'Thanks for your business!',
   }
 );
 
 // Advanced invoice
 const advancedInvoice = await sdk.invoices.createInvoice({
-  invoice_number: 'INV-002',
-  due_date: '2024-02-15',
+  invoiceNumber: 'INV-002',
+  dueDate: '2024-02-15',
   items: [
     {
       description: 'Consulting Services',
       quantity: 5,
-      unit_price: 150.00,
-      total_amount: 750.00
-    }
+      unitPrice: 150.0,
+      totalAmount: 750.0,
+    },
   ],
   currency: 'CAD',
-  tax_rate: 13,
-  discount_amount: 50.00,
-  shipping_amount: 25.00,
+  taxRate: 13,
+  discountAmount: 50.0,
+  shippingAmount: 25.0,
   email: 'customer@example.com',
-  first_name: 'John',
-  last_name: 'Doe',
-  notes: 'Payment terms: Net 30'
+  firstName: 'John',
+  lastName: 'Doe',
+  notes: 'Payment terms: Net 30',
 });
 ```
 
@@ -390,19 +479,19 @@ const advancedInvoice = await sdk.invoices.createInvoice({
 ```typescript
 // Send invoice email
 await sdk.invoices.sendInvoiceToEmail(
-  invoice.lookup_id,
+  invoice.lookupId,
   'customer@example.com',
   'Your Invoice is Ready',
   'Please find your invoice attached.'
 );
 
 // Mark as paid
-await sdk.invoices.markInvoiceAsPaid(invoice.lookup_id);
+await sdk.invoices.markInvoiceAsPaid(invoice.lookupId);
 
 // Get invoice analytics
 const summary = await sdk.invoices.getInvoiceSummary({
-  start_date: '2024-01-01',
-  end_date: '2024-12-31'
+  startDate: '2024-01-01',
+  endDate: '2024-12-31',
 });
 ```
 
@@ -412,17 +501,13 @@ const summary = await sdk.invoices.getInvoiceSummary({
 
 ```typescript
 // Process terminal sale
-const terminalSale = await sdk.terminals.quickSale(
-  'TERMINAL-001',
-  50.00,
-  'CAD'
-);
+const terminalSale = await sdk.terminals.quickSale('TERMINAL-001', 50.0, 'CAD');
 
 // Process refund
 const terminalRefund = await sdk.terminals.quickRefund(
   'TERMINAL-001',
   terminalSale.id,
-  50.00
+  50.0
 );
 
 // Check terminal status
@@ -439,7 +524,7 @@ const balance = await sdk.eft.getBalance();
 
 // Process debit (incoming funds)
 const debit = await sdk.eft.quickDebit(
-  1000.00,
+  1000.0,
   '1234567890',
   '123456789',
   'John Doe',
@@ -448,7 +533,7 @@ const debit = await sdk.eft.quickDebit(
 
 // Process credit (outgoing funds)
 const credit = await sdk.eft.quickCredit(
-  500.00,
+  500.0,
   '1234567890',
   '123456789',
   'John Doe',
@@ -466,9 +551,9 @@ const summary = await sdk.eft.getAccountSummary();
 ```typescript
 // Get transaction summary
 const summary = await sdk.transactions.getTransactionSummary({
-  start_date: '2024-01-01',
-  end_date: '2024-12-31',
-  status: 'APPROVED'
+  startDate: '2024-01-01',
+  endDate: '2024-12-31',
+  status: 'APPROVED',
 });
 
 // Daily volume
@@ -496,12 +581,12 @@ const monthlyStats = await sdk.invoices.getMonthlyInvoiceStats(2024, 1);
 The SDK provides comprehensive error handling with specific error types:
 
 ```typescript
-import { 
-  PayfirmaError, 
-  AuthenticationError, 
-  PaymentError, 
+import {
+  PayfirmaError,
+  AuthenticationError,
+  PaymentError,
   ValidationError,
-  NetworkError 
+  NetworkError,
 } from 'payfirma-sdk';
 
 try {
@@ -531,28 +616,65 @@ try {
 The SDK is written in TypeScript and provides comprehensive type definitions:
 
 ```typescript
-import { 
-  PayfirmaSDK, 
-  Transaction, 
-  Customer, 
-  Plan, 
-  Invoice 
+import {
+  PayfirmaSDK,
+  Transaction,
+  Customer,
+  Plan,
+  Invoice,
 } from 'payfirma-sdk';
 
-// All responses are properly typed
+// All responses are properly typed with camelCase properties
 const customer: Customer = await sdk.customers.createCustomer({
   email: 'customer@example.com',
-  first_name: 'John',
-  last_name: 'Doe'
+  firstName: 'John',
+  lastName: 'Doe',
 });
 
 // TypeScript will catch errors at compile time
 const transaction: Transaction = await sdk.transactions.createSale({
-  amount: 100.00,
+  amount: 100.0,
   currency: 'CAD', // TypeScript knows this should be 'CAD' | 'USD'
+  card: {
+    cardNumber: '4111111111111111',
+    cardExpiryMonth: 12,
+    cardExpiryYear: 25,
+    cvv2: '123',
+  },
+  firstName: 'John',
+  sendReceipt: true,
   // ... other properties
 });
+
+// Access response properties with camelCase
+console.log(transaction.id); // Transaction ID
+console.log(transaction.customerId); // Customer ID (if available)
+console.log(customer.lookupId); // Customer lookup ID
 ```
+
+### Type Definitions Note
+
+The TypeScript type definitions show snake_case properties (matching the Payfirma API), but you should use camelCase in your actual code. The SDK's transformers automatically handle the conversion:
+
+```typescript
+// TypeScript definition shows snake_case:
+interface CreateCustomerRequest {
+  first_name?: string;
+  last_name?: string;
+  email_address?: string;
+  // ...
+}
+
+// But write your code using camelCase:
+const customer = await sdk.customers.createCustomer({
+  firstName: 'John',
+  lastName: 'Doe',
+  emailAddress: 'john@example.com',
+  // ...
+});
+```
+
+This approach ensures type safety while providing a JavaScript-friendly developer experience.
 
 ## Testing
 
@@ -623,4 +745,4 @@ See [CHANGELOG.md](CHANGELOG.md) for details about changes in each version.
 
 **Note**: This SDK is designed to work with the Payfirma API. Make sure you have valid API credentials and appropriate permissions for the operations you want to perform.
 
-For sandbox testing, use the test card numbers provided in the [Payfirma API documentation](https://developer.payfirma.com). 
+For sandbox testing, use the test card numbers provided in the [Payfirma API documentation](https://developer.payfirma.com).

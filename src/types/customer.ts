@@ -2,7 +2,13 @@
  * Customer Service type definitions
  */
 
-import { Address, ContactInfo, LookupReference, PaginationParams, Currency } from './common';
+import {
+  Address,
+  ContactInfo,
+  LookupReference,
+  PaginationParams,
+  Currency,
+} from './common';
 
 /**
  * Customer creation request
@@ -19,7 +25,9 @@ export interface CreateCustomerRequest extends ContactInfo, Address {
 /**
  * Customer update request
  */
-export interface UpdateCustomerRequest extends Partial<ContactInfo>, Partial<Address> {
+export interface UpdateCustomerRequest
+  extends Partial<ContactInfo>,
+    Partial<Address> {
   /** Additional email for BCC receipts */
   bcc_emails?: string;
   /** Custom identifier for the customer */
@@ -205,4 +213,4 @@ export interface CustomerListResponse {
       after: string;
     };
   };
-} 
+}

@@ -2,17 +2,34 @@
  * Transaction Service type definitions
  */
 
-import { LookupReference, Currency, ContactInfo, Address, PaginationParams, DateRange } from './common';
+import {
+  LookupReference,
+  Currency,
+  ContactInfo,
+  Address,
+  PaginationParams,
+  DateRange,
+} from './common';
 
 /**
  * Transaction types
  */
-export type TransactionType = 'SALE' | 'AUTHORIZATION' | 'CAPTURE' | 'REFUND' | 'VOID';
+export type TransactionType =
+  | 'SALE'
+  | 'AUTHORIZATION'
+  | 'CAPTURE'
+  | 'REFUND'
+  | 'VOID';
 
 /**
  * Transaction status
  */
-export type TransactionStatus = 'APPROVED' | 'DECLINED' | 'PENDING' | 'CANCELLED' | 'FAILED';
+export type TransactionStatus =
+  | 'APPROVED'
+  | 'DECLINED'
+  | 'PENDING'
+  | 'CANCELLED'
+  | 'FAILED';
 
 /**
  * Card information for transactions
@@ -31,7 +48,9 @@ export interface TransactionCard {
 /**
  * Base transaction request
  */
-export interface BaseTransactionRequest extends Partial<ContactInfo>, Partial<Address> {
+export interface BaseTransactionRequest
+  extends Partial<ContactInfo>,
+    Partial<Address> {
   /** Transaction amount */
   amount: number;
   /** Currency code */
@@ -78,7 +97,8 @@ export interface SaleTransactionRequest extends BaseTransactionRequest {
 /**
  * Authorization transaction request
  */
-export interface AuthorizationTransactionRequest extends BaseTransactionRequest {
+export interface AuthorizationTransactionRequest
+  extends BaseTransactionRequest {
   /** Card information or token */
   card?: TransactionCard;
   /** Encrypted card token */
@@ -175,10 +195,11 @@ export interface Transaction extends LookupReference {
     card_expiry: string;
   };
   /** Customer information */
-  customer?: ContactInfo & Address & {
-    /** Customer lookup ID if stored */
-    customer_lookup_id?: string;
-  };
+  customer?: ContactInfo &
+    Address & {
+      /** Customer lookup ID if stored */
+      customer_lookup_id?: string;
+    };
   /** Invoice information */
   invoice_info?: {
     /** Invoice number */
@@ -257,4 +278,4 @@ export interface TransactionSummary {
     refunds: number;
     voids: number;
   };
-} 
+}

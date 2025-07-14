@@ -5,7 +5,10 @@
 /**
  * OAuth 2.0 grant types supported by Payfirma
  */
-export type GrantType = 'client_credentials' | 'authorization_code' | 'refresh_token';
+export type GrantType =
+  | 'client_credentials'
+  | 'authorization_code'
+  | 'refresh_token';
 
 /**
  * OAuth 2.0 response types
@@ -184,4 +187,4 @@ export interface TokenValidation {
   reason?: string;
   /** Whether token needs refresh */
   needs_refresh?: boolean;
-} 
+}

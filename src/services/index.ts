@@ -8,4 +8,4 @@ export * from './PlanService';
 export * from './TransactionService';
 export * from './InvoiceService';
 export * from './TerminalService';
-export * from './EFTService'; 
+export * from './EFTService';

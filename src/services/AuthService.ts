@@ -2,22 +2,23 @@
  * Authentication service for managing OAuth 2.0 tokens
  */
 
-import axios, { AxiosInstance } from 'axios';
-import { 
-  TokenResponse, 
-  ClientCredentialsRequest, 
-  AuthorizationCodeRequest, 
-  RefreshTokenRequest, 
+import { AxiosInstance } from 'axios';
+import {
+  TokenResponse,
+  ClientCredentialsRequest,
+  AuthorizationCodeRequest,
+  RefreshTokenRequest,
   AuthCredentials,
   TokenValidation,
-  JWTPayload 
+  JWTPayload,
 } from '../types/auth';
 import { PayfirmaSDKConfig, Environment } from '../types/common';
-import { 
-  AuthenticationError, 
-  ErrorFactory, 
-  PayfirmaError 
+import {
+  AuthenticationError,
+  ErrorFactory,
+  PayfirmaError,
 } from '../types/errors';
+import { createAuthClient } from '../utils/apiClient';
 
 /**
  * Authentication service for OAuth 2.0 flow
@@ -32,15 +33,8 @@ export class AuthService {
   constructor(config: PayfirmaSDKConfig, environment: Environment) {
     this.config = config;
     this.environment = environment;
-    
-    this.httpClient = axios.create({
-      baseURL: environment.authUrl,
-      timeout: config.timeout || 30000,
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'Payfirma-SDK-TypeScript/1.0.0'
-      }
-    });
+
+    this.httpClient = createAuthClient(config, environment);
   }
 
   /**
@@ -58,26 +52,29 @@ export class AuthService {
     const request: ClientCredentialsRequest = {
       grant_type: 'client_credentials',
       client_id: this.config.clientId,
-      client_secret: this.config.clientSecret
+      client_secret: this.config.clientSecret,
     };
 
     try {
-      const response = await this.httpClient.post<TokenResponse>('/oauth/token', 
+      const response = await this.httpClient.post<TokenResponse>(
+        '/oauth/token',
         new URLSearchParams(request as any).toString(),
         {
           headers: {
-            'Authorization': this.getBasicAuthHeader()
-          }
+            Authorization: this.getBasicAuthHeader(),
+          },
         }
       );
 
       const tokenData = response.data;
       const credentials: AuthCredentials = {
         access_token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token,
-        expires_at: Date.now() + (tokenData.expires_in * 1000),
-        merchant_id: tokenData.merchant_id,
-        scope: tokenData.scope ? tokenData.scope.split(' ') : undefined
+        expires_at: Date.now() + tokenData.expires_in * 1000,
+        ...(tokenData.refresh_token && {
+          refresh_token: tokenData.refresh_token,
+        }),
+        ...(tokenData.merchant_id && { merchant_id: tokenData.merchant_id }),
+        ...(tokenData.scope && { scope: tokenData.scope.split(' ') }),
       };
 
       this.credentials = credentials;
@@ -91,8 +88,8 @@ export class AuthService {
    * Authorization code grant - exchange authorization code for access token
    */
   async authorizationCodeGrant(
-    code: string, 
-    redirectUri: string, 
+    code: string,
+    redirectUri: string,
     state?: string
   ): Promise<AuthCredentials> {
     const request: AuthorizationCodeRequest = {
@@ -101,16 +98,17 @@ export class AuthService {
       redirect_uri: redirectUri,
       client_id: this.config.clientId,
       client_secret: this.config.clientSecret,
-      ...(state && { state })
+      ...(state && { state }),
     };
 
     try {
-      const response = await this.httpClient.post<TokenResponse>('/oauth/token', 
+      const response = await this.httpClient.post<TokenResponse>(
+        '/oauth/token',
         new URLSearchParams(request as any).toString(),
         {
           headers: {
-            'Authorization': this.getBasicAuthHeader()
-          }
+            Authorization: this.getBasicAuthHeader(),
+          },
         }
       );
 
@@ -118,9 +116,9 @@ export class AuthService {
       const credentials: AuthCredentials = {
         access_token: tokenData.access_token,
         refresh_token: tokenData.refresh_token,
-        expires_at: Date.now() + (tokenData.expires_in * 1000),
+        expires_at: Date.now() + tokenData.expires_in * 1000,
         merchant_id: tokenData.merchant_id,
-        scope: tokenData.scope ? tokenData.scope.split(' ') : undefined
+        scope: tokenData.scope ? tokenData.scope.split(' ') : undefined,
       };
 
       this.credentials = credentials;
@@ -148,17 +146,18 @@ export class AuthService {
       grant_type: 'refresh_token',
       refresh_token: tokenToUse,
       client_id: this.config.clientId,
-      client_secret: this.config.clientSecret
+      client_secret: this.config.clientSecret,
     };
 
     this.tokenRefreshPromise = (async () => {
       try {
-        const response = await this.httpClient.post<TokenResponse>('/oauth/token', 
+        const response = await this.httpClient.post<TokenResponse>(
+          '/oauth/token',
           new URLSearchParams(request as any).toString(),
           {
             headers: {
-              'Authorization': this.getBasicAuthHeader()
-            }
+              Authorization: this.getBasicAuthHeader(),
+            },
           }
         );
 
@@ -166,9 +165,9 @@ export class AuthService {
         const credentials: AuthCredentials = {
           access_token: tokenData.access_token,
           refresh_token: tokenData.refresh_token,
-          expires_at: Date.now() + (tokenData.expires_in * 1000),
+          expires_at: Date.now() + tokenData.expires_in * 1000,
           merchant_id: tokenData.merchant_id,
-          scope: tokenData.scope ? tokenData.scope.split(' ') : undefined
+          scope: tokenData.scope ? tokenData.scope.split(' ') : undefined,
         };
 
         this.credentials = credentials;
@@ -186,11 +185,15 @@ export class AuthService {
   /**
    * Get the authorization URL for OAuth 2.0 flow
    */
-  getAuthorizationUrl(redirectUri: string, state?: string, scopes?: string[]): string {
+  getAuthorizationUrl(
+    redirectUri: string,
+    state?: string,
+    scopes?: string[]
+  ): string {
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: this.config.clientId,
-      redirect_uri: redirectUri
+      redirect_uri: redirectUri,
     });
 
     if (state) {
@@ -215,8 +218,8 @@ export class AuthService {
     try {
       await this.httpClient.delete('/oauth/revoke_token', {
         headers: {
-          'Authorization': `Bearer ${this.credentials.access_token}`
-        }
+          Authorization: `Bearer ${this.credentials.access_token}`,
+        },
       });
     } catch (error: any) {
       // Ignore errors when revoking token
@@ -246,7 +249,7 @@ export class AuthService {
     if (!this.credentials) {
       return {
         valid: false,
-        reason: 'No credentials available'
+        reason: 'No credentials available',
       };
     }
 
@@ -262,13 +265,13 @@ export class AuthService {
         valid: false,
         expires_at: expiresAt,
         reason: 'Token expired or expiring soon',
-        needs_refresh: !!this.credentials.refresh_token
+        needs_refresh: !!this.credentials.refresh_token,
       };
     }
 
     return {
       valid: true,
-      expires_at: expiresAt
+      expires_at: expiresAt,
     };
   }
 
@@ -277,12 +280,14 @@ export class AuthService {
    */
   async getValidToken(): Promise<string> {
     const validation = this.validateToken();
-    
+
     if (!validation.valid) {
       if (validation.needs_refresh) {
         await this.refreshToken();
       } else {
-        throw new AuthenticationError('No valid token available and cannot refresh');
+        throw new AuthenticationError(
+          'No valid token available and cannot refresh'
+        );
       }
     }
 
@@ -303,14 +308,18 @@ export class AuthService {
   parseTokenPayload(token: string): JWTPayload {
     try {
       const parts = token.split('.');
-      if (parts.length !== 3) {
+      if (parts.length !== 3 || !parts[1]) {
         throw new Error('Invalid JWT format');
       }
 
-      const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
+      const payload = JSON.parse(
+        Buffer.from(parts[1], 'base64').toString('utf-8')
+      );
       return payload;
     } catch (error: any) {
-      throw new AuthenticationError('Invalid token format', { originalError: error.message });
+      throw new AuthenticationError('Invalid token format', {
+        originalError: error.message,
+      });
     }
   }
 
@@ -320,17 +329,20 @@ export class AuthService {
   private handleAuthError(error: any): PayfirmaError {
     if (error.response) {
       const { status, data } = error.response;
-      
-      if (data && data.error) {
-        return ErrorFactory.fromApiResponse({
-          code: data.error,
-          message: data.error_description || 'Authentication failed',
-          status,
-          details: data,
-          request_id: error.response.headers['x-request-id']
-        }, error);
+
+      if (data?.error) {
+        return ErrorFactory.fromApiResponse(
+          {
+            code: data.error,
+            message: data.error_description || 'Authentication failed',
+            status,
+            details: data,
+            request_id: error.response.headers['x-request-id'],
+          },
+          error
+        );
       }
-      
+
       return new AuthenticationError(
         `Authentication failed: ${status}`,
         { status, response: data },
@@ -340,9 +352,17 @@ export class AuthService {
     }
 
     if (error.request) {
-      return ErrorFactory.networkError('Network error during authentication', error);
+      return ErrorFactory.networkError(
+        'Network error during authentication',
+        error
+      );
     }
 
-    return new AuthenticationError('Authentication failed', { originalError: error.message }, undefined, error);
+    return new AuthenticationError(
+      'Authentication failed',
+      { originalError: error.message },
+      undefined,
+      error
+    );
   }
-} 
+}

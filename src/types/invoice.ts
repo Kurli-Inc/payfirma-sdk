@@ -2,7 +2,14 @@
  * Invoice Service type definitions
  */
 
-import { LookupReference, Currency, ContactInfo, Address, PaginationParams, DateRange } from './common';
+import {
+  LookupReference,
+  Currency,
+  ContactInfo,
+  Address,
+  PaginationParams,
+  DateRange,
+} from './common';
 
 /**
  * Invoice status
@@ -30,7 +37,9 @@ export interface InvoiceItem {
 /**
  * Invoice creation request
  */
-export interface CreateInvoiceRequest extends Partial<ContactInfo>, Partial<Address> {
+export interface CreateInvoiceRequest
+  extends Partial<ContactInfo>,
+    Partial<Address> {
   /** Invoice number */
   invoice_number: string;
   /** Invoice due date */
@@ -58,7 +67,9 @@ export interface CreateInvoiceRequest extends Partial<ContactInfo>, Partial<Addr
 /**
  * Invoice update request
  */
-export interface UpdateInvoiceRequest extends Partial<ContactInfo>, Partial<Address> {
+export interface UpdateInvoiceRequest
+  extends Partial<ContactInfo>,
+    Partial<Address> {
   /** Invoice number */
   invoice_number?: string;
   /** Invoice due date */
@@ -150,10 +161,11 @@ export interface Invoice extends LookupReference {
   /** Tax rate percentage */
   tax_rate: number;
   /** Customer information */
-  customer: ContactInfo & Address & {
-    /** Customer lookup ID if stored */
-    customer_lookup_id?: string;
-  };
+  customer: ContactInfo &
+    Address & {
+      /** Customer lookup ID if stored */
+      customer_lookup_id?: string;
+    };
   /** Invoice notes */
   notes?: string;
   /** Terms and conditions */
@@ -216,4 +228,4 @@ export interface InvoiceSummary {
     overdue: number;
     cancelled: number;
   };
-} 
+}

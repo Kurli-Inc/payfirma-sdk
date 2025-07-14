@@ -12,7 +12,7 @@ import {
   InvoiceSearchParams,
   InvoiceListResponse,
   SendInvoiceEmailRequest,
-  InvoiceSummary
+  InvoiceSummary,
 } from '../types/invoice';
 import { ErrorFactory, PayfirmaError } from '../types/errors';
 
@@ -25,27 +25,29 @@ export class InvoiceService {
 
   constructor(environment: Environment, authService: AuthService) {
     this.authService = authService;
-    
+
     this.httpClient = axios.create({
       baseURL: `${environment.gatewayUrl}/invoice-service`,
       timeout: 30000,
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'Payfirma-SDK-TypeScript/1.0.0'
-      }
+        'User-Agent': 'Payfirma-SDK-TypeScript/1.0.0',
+      },
     });
 
     // Add request interceptor to include auth header
-    this.httpClient.interceptors.request.use(async (config) => {
+    this.httpClient.interceptors.request.use(async config => {
       const authHeader = await this.authService.getAuthHeader();
-      config.headers = { ...config.headers, ...authHeader };
+      if (config.headers) {
+        config.headers['Authorization'] = authHeader.Authorization;
+      }
       return config;
     });
 
     // Add response interceptor to handle errors
     this.httpClient.interceptors.response.use(
-      (response) => response,
-      (error) => {
+      response => response,
+      error => {
         throw this.handleError(error);
       }
     );
@@ -71,15 +73,23 @@ export class InvoiceService {
    * Get invoice by ID
    */
   async getInvoice(invoiceId: string): Promise<Invoice> {
-    const response = await this.httpClient.get<Invoice>(`/invoice/${invoiceId}`);
+    const response = await this.httpClient.get<Invoice>(
+      `/invoice/${invoiceId}`
+    );
     return response.data;
   }
 
   /**
    * Update an invoice
    */
-  async updateInvoice(invoiceId: string, request: UpdateInvoiceRequest): Promise<Invoice> {
-    const response = await this.httpClient.put<Invoice>(`/invoice/${invoiceId}`, request);
+  async updateInvoice(
+    invoiceId: string,
+    request: UpdateInvoiceRequest
+  ): Promise<Invoice> {
+    const response = await this.httpClient.put<Invoice>(
+      `/invoice/${invoiceId}`,
+      request
+    );
     return response.data;
   }
 
@@ -93,8 +103,13 @@ export class InvoiceService {
   /**
    * List invoices with optional filtering
    */
-  async listInvoices(params?: InvoiceSearchParams): Promise<InvoiceListResponse> {
-    const response = await this.httpClient.get<InvoiceListResponse>('/invoice', { params });
+  async listInvoices(
+    params?: InvoiceSearchParams
+  ): Promise<InvoiceListResponse> {
+    const response = await this.httpClient.get<InvoiceListResponse>(
+      '/invoice',
+      { params }
+    );
     return response.data;
   }
 
@@ -118,17 +133,17 @@ export class InvoiceService {
     message?: string
   ): Promise<void> {
     const request: SendInvoiceEmailRequest = {
-      email
+      email,
     };
-    
+
     if (subject !== undefined) {
       request.subject = subject;
     }
-    
+
     if (message !== undefined) {
       request.message = message;
     }
-    
+
     await this.sendInvoiceEmail(invoiceId, request);
   }
 
@@ -160,7 +175,9 @@ export class InvoiceService {
    * Get invoices by customer
    */
   async getInvoicesByCustomer(customerLookupId: string): Promise<Invoice[]> {
-    const response = await this.listInvoices({ customer_lookup_id: customerLookupId });
+    const response = await this.listInvoices({
+      customer_lookup_id: customerLookupId,
+    });
     return response.entities;
   }
 
@@ -181,7 +198,7 @@ export class InvoiceService {
   ): Promise<Invoice[]> {
     const response = await this.listInvoices({
       start_date: startDate,
-      end_date: endDate
+      end_date: endDate,
     });
     return response.entities;
   }
@@ -195,7 +212,7 @@ export class InvoiceService {
   ): Promise<Invoice[]> {
     const response = await this.listInvoices({
       amount_min: minAmount,
-      amount_max: maxAmount
+      amount_max: maxAmount,
     });
     return response.entities;
   }
@@ -275,7 +292,10 @@ export class InvoiceService {
     shipping: number;
     total: number;
   } {
-    const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+    const subtotal = items.reduce(
+      (sum, item) => sum + item.quantity * item.unit_price,
+      0
+    );
     const tax = subtotal * (taxRate / 100);
     const total = subtotal + tax - discountAmount + shippingAmount;
 
@@ -284,7 +304,7 @@ export class InvoiceService {
       tax,
       discount: discountAmount,
       shipping: shippingAmount,
-      total
+      total,
     };
   }
 
@@ -316,7 +336,7 @@ export class InvoiceService {
     const invoiceItems = items.map(item => ({
       ...item,
       total_amount: item.quantity * item.unit_price,
-      tax_amount: item.quantity * item.unit_price * (taxRate / 100)
+      tax_amount: item.quantity * item.unit_price * (taxRate / 100),
     }));
 
     const request: CreateInvoiceRequest = {
@@ -327,9 +347,9 @@ export class InvoiceService {
       tax_rate: taxRate,
       discount_amount: discountAmount,
       shipping_amount: shippingAmount,
-      email: customerEmail
+      email: customerEmail,
     };
-    
+
     if (options?.notes !== undefined) {
       request.notes = options.notes;
     }
@@ -340,7 +360,9 @@ export class InvoiceService {
   /**
    * Get invoice summary/analytics
    */
-  async getInvoiceSummary(params?: InvoiceSearchParams): Promise<InvoiceSummary> {
+  async getInvoiceSummary(
+    params?: InvoiceSearchParams
+  ): Promise<InvoiceSummary> {
     const response = await this.listInvoices(params);
     const invoices = response.entities;
 
@@ -362,8 +384,8 @@ export class InvoiceService {
         sent: invoices.filter(inv => inv.status === 'SENT').length,
         paid: invoices.filter(inv => inv.status === 'PAID').length,
         overdue: invoices.filter(inv => inv.status === 'OVERDUE').length,
-        cancelled: invoices.filter(inv => inv.status === 'CANCELLED').length
-      }
+        cancelled: invoices.filter(inv => inv.status === 'CANCELLED').length,
+      },
     };
 
     return summary;
@@ -372,7 +394,10 @@ export class InvoiceService {
   /**
    * Get monthly invoice statistics
    */
-  async getMonthlyInvoiceStats(year: number, month: number): Promise<{
+  async getMonthlyInvoiceStats(
+    year: number,
+    month: number
+  ): Promise<{
     month: string;
     invoices_created: number;
     invoices_paid: number;
@@ -396,7 +421,7 @@ export class InvoiceService {
       paid_amount: invoices
         .filter(inv => inv.status === 'PAID')
         .reduce((sum, inv) => sum + inv.total_amount, 0),
-      currency: invoices[0]?.currency || 'CAD'
+      currency: invoices[0]?.currency || 'CAD',
     };
   }
 
@@ -406,33 +431,45 @@ export class InvoiceService {
   private handleError(error: any): PayfirmaError {
     if (error.response) {
       const { status, data } = error.response;
-      
-      if (data && data.error) {
-        return ErrorFactory.fromApiResponse({
-          code: data.error,
-          message: data.message || 'Invoice service error',
+
+      if (data?.error) {
+        return ErrorFactory.fromApiResponse(
+          {
+            code: data.error,
+            message: data.message || 'Invoice service error',
+            status,
+            details: data,
+            request_id: error.response.headers['x-request-id'],
+          },
+          error
+        );
+      }
+
+      return ErrorFactory.fromApiResponse(
+        {
+          code: 'API_ERROR',
+          message: `Invoice service error: ${status}`,
           status,
           details: data,
-          request_id: error.response.headers['x-request-id']
-        }, error);
-      }
-      
-      return ErrorFactory.fromApiResponse({
-        code: 'API_ERROR',
-        message: `Invoice service error: ${status}`,
-        status,
-        details: data,
-        request_id: error.response.headers['x-request-id']
-      }, error);
+          request_id: error.response.headers['x-request-id'],
+        },
+        error
+      );
     }
 
     if (error.request) {
-      return ErrorFactory.networkError('Network error in invoice service', error);
+      return ErrorFactory.networkError(
+        'Network error in invoice service',
+        error
+      );
     }
 
-    return ErrorFactory.fromApiResponse({
-      code: 'UNKNOWN_ERROR',
-      message: 'Unknown error in invoice service'
-    }, error);
+    return ErrorFactory.fromApiResponse(
+      {
+        code: 'UNKNOWN_ERROR',
+        message: 'Unknown error in invoice service',
+      },
+      error
+    );
   }
-} 
+}

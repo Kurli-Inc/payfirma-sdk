@@ -2,7 +2,8 @@
  * Customer service for managing customers, cards, and subscriptions
  */
 
-import axios, { AxiosInstance } from 'axios';
+import { AxiosInstance } from 'axios';
+import { createApiClient } from '../utils/apiClient';
 import { AuthService } from './AuthService';
 import { Environment } from '../types/common';
 import {
@@ -16,7 +17,7 @@ import {
   UpdateCardRequest,
   Subscription,
   CreateSubscriptionRequest,
-  UpdateSubscriptionRequest
+  UpdateSubscriptionRequest,
 } from '../types/customer';
 import { ErrorFactory, PayfirmaError } from '../types/errors';
 
@@ -29,27 +30,26 @@ export class CustomerService {
 
   constructor(environment: Environment, authService: AuthService) {
     this.authService = authService;
-    
-    this.httpClient = axios.create({
-      baseURL: `${environment.gatewayUrl}/customer-service`,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Payfirma-SDK-TypeScript/1.0.0'
-      }
-    });
+
+    this.httpClient = createApiClient(
+      { clientId: '', clientSecret: '', timeout: 30000 },
+      environment,
+      `${environment.gatewayUrl}/customer-service`
+    );
 
     // Add request interceptor to include auth header
-    this.httpClient.interceptors.request.use(async (config) => {
+    this.httpClient.interceptors.request.use(async config => {
       const authHeader = await this.authService.getAuthHeader();
-      config.headers = { ...config.headers, ...authHeader };
+      if (config.headers) {
+        config.headers['Authorization'] = authHeader.Authorization;
+      }
       return config;
     });
 
     // Add response interceptor to handle errors
     this.httpClient.interceptors.response.use(
-      (response) => response,
-      (error) => {
+      response => response,
+      error => {
         throw this.handleError(error);
       }
     );
@@ -69,7 +69,9 @@ export class CustomerService {
    * Retrieve a specific customer by lookup ID
    */
   async getCustomer(customerLookupId: string): Promise<Customer> {
-    const response = await this.httpClient.get<Customer>(`/customer/${customerLookupId}`);
+    const response = await this.httpClient.get<Customer>(
+      `/customer/${customerLookupId}`
+    );
     return response.data;
   }
 
@@ -77,18 +79,26 @@ export class CustomerService {
    * Update a customer
    */
   async updateCustomer(
-    customerLookupId: string, 
+    customerLookupId: string,
     request: UpdateCustomerRequest
   ): Promise<Customer> {
-    const response = await this.httpClient.put<Customer>(`/customer/${customerLookupId}`, request);
+    const response = await this.httpClient.put<Customer>(
+      `/customer/${customerLookupId}`,
+      request
+    );
     return response.data;
   }
 
   /**
    * List all customers with optional filtering
    */
-  async listCustomers(params?: CustomerSearchParams): Promise<CustomerListResponse> {
-    const response = await this.httpClient.get<CustomerListResponse>('/customer', { params });
+  async listCustomers(
+    params?: CustomerSearchParams
+  ): Promise<CustomerListResponse> {
+    const response = await this.httpClient.get<CustomerListResponse>(
+      '/customer',
+      { params }
+    );
     return response.data;
   }
 
@@ -137,8 +147,13 @@ export class CustomerService {
   /**
    * Remove a card from a customer
    */
-  async removeCard(customerLookupId: string, cardLookupId: string): Promise<void> {
-    await this.httpClient.delete(`/customer/${customerLookupId}/card/${cardLookupId}`);
+  async removeCard(
+    customerLookupId: string,
+    cardLookupId: string
+  ): Promise<void> {
+    await this.httpClient.delete(
+      `/customer/${customerLookupId}/card/${cardLookupId}`
+    );
   }
 
   /**
@@ -280,8 +295,13 @@ export class CustomerService {
   /**
    * Set a card as default
    */
-  async setDefaultCard(customerLookupId: string, cardLookupId: string): Promise<Card> {
-    return this.updateCard(customerLookupId, cardLookupId, { is_default: true });
+  async setDefaultCard(
+    customerLookupId: string,
+    cardLookupId: string
+  ): Promise<Card> {
+    return this.updateCard(customerLookupId, cardLookupId, {
+      is_default: true,
+    });
   }
 
   /**
@@ -305,33 +325,45 @@ export class CustomerService {
   private handleError(error: any): PayfirmaError {
     if (error.response) {
       const { status, data } = error.response;
-      
-      if (data && data.error) {
-        return ErrorFactory.fromApiResponse({
-          code: data.error,
-          message: data.message || 'Customer service error',
+
+      if (data?.error) {
+        return ErrorFactory.fromApiResponse(
+          {
+            code: data.error,
+            message: data.message || 'Customer service error',
+            status,
+            details: data,
+            request_id: error.response.headers['x-request-id'],
+          },
+          error
+        );
+      }
+
+      return ErrorFactory.fromApiResponse(
+        {
+          code: 'API_ERROR',
+          message: `Customer service error: ${status}`,
           status,
           details: data,
-          request_id: error.response.headers['x-request-id']
-        }, error);
-      }
-      
-      return ErrorFactory.fromApiResponse({
-        code: 'API_ERROR',
-        message: `Customer service error: ${status}`,
-        status,
-        details: data,
-        request_id: error.response.headers['x-request-id']
-      }, error);
+          request_id: error.response.headers['x-request-id'],
+        },
+        error
+      );
     }
 
     if (error.request) {
-      return ErrorFactory.networkError('Network error in customer service', error);
+      return ErrorFactory.networkError(
+        'Network error in customer service',
+        error
+      );
     }
 
-    return ErrorFactory.fromApiResponse({
-      code: 'UNKNOWN_ERROR',
-      message: 'Unknown error in customer service'
-    }, error);
+    return ErrorFactory.fromApiResponse(
+      {
+        code: 'UNKNOWN_ERROR',
+        message: 'Unknown error in customer service',
+      },
+      error
+    );
   }
-} 
+}

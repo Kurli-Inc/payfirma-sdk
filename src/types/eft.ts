@@ -12,7 +12,11 @@ export type EFTTransactionType = 'DEBIT' | 'CREDIT' | 'DEPOSIT' | 'WITHDRAWAL';
 /**
  * EFT transaction status
  */
-export type EFTTransactionStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+export type EFTTransactionStatus =
+  | 'PENDING'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'CANCELLED';
 
 /**
  * Bank account information
@@ -33,7 +37,9 @@ export interface BankAccount {
 /**
  * EFT debit request (incoming funds)
  */
-export interface EFTDebitRequest extends Partial<ContactInfo>, Partial<Address> {
+export interface EFTDebitRequest
+  extends Partial<ContactInfo>,
+    Partial<Address> {
   /** Transaction amount */
   amount: number;
   /** Currency code */
@@ -51,7 +57,9 @@ export interface EFTDebitRequest extends Partial<ContactInfo>, Partial<Address> 
 /**
  * EFT credit request (outgoing funds)
  */
-export interface EFTCreditRequest extends Partial<ContactInfo>, Partial<Address> {
+export interface EFTCreditRequest
+  extends Partial<ContactInfo>,
+    Partial<Address> {
   /** Transaction amount */
   amount: number;
   /** Currency code */
@@ -188,4 +196,4 @@ export interface EFTTransactionSearchParams {
   before?: string;
   /** Pagination cursor */
   after?: string;
-} 
+}
