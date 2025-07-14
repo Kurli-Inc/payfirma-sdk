@@ -1,0 +1,62 @@
+{
+  "name": "payfirma-sdk",
+  "version": "1.0.0",
+  "description": "Official TypeScript SDK for Payfirma API - Complete payment processing solution",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc -w",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "prepublishOnly": "npm run build",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write src/**/*.ts"
+  },
+  "keywords": [
+    "payfirma",
+    "payments",
+    "api",
+    "sdk",
+    "typescript",
+    "payment-processing",
+    "credit-cards",
+    "subscriptions",
+    "oauth2"
+  ],
+  "author": "Payfirma SDK Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/payfirma/payfirma-sdk-typescript"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/jsonwebtoken": "^9.0.0",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "jest": "^29.5.0",
+    "prettier": "^3.0.0",
+    "ts-jest": "^29.1.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.0.0"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
