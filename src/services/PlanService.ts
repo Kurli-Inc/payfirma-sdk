@@ -2,7 +2,7 @@
  * Plan service for managing recurring payment plans
  */
 
-import axios, { AxiosInstance } from 'axios';
+import { HttpClient, createApiClient, withAuth } from '../utils/apiClient';
 import { AuthService } from './AuthService';
 import { Environment } from '../types/common';
 import {
@@ -17,44 +17,61 @@ import { ErrorFactory, PayfirmaError } from '../types/errors';
  * Plan service for managing recurring payment plans
  */
 export class PlanService {
-  private httpClient: AxiosInstance;
+  private httpClient: HttpClient;
   private authService: AuthService;
 
   constructor(environment: Environment, authService: AuthService) {
     this.authService = authService;
 
-    this.httpClient = axios.create({
-      baseURL: `${environment.gatewayUrl}/plan-service`,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Payfirma-SDK-TypeScript/1.0.0',
-      },
-    });
-
-    // Add request interceptor to include auth header
-    this.httpClient.interceptors.request.use(async config => {
-      const authHeader = await this.authService.getAuthHeader();
-      if (config.headers) {
-        config.headers['Authorization'] = authHeader.Authorization;
-      }
-      return config;
-    });
-
-    // Add response interceptor to handle errors
-    this.httpClient.interceptors.response.use(
-      response => response,
-      error => {
-        throw this.handleError(error);
-      }
+    this.httpClient = createApiClient(
+      { clientId: '', clientSecret: '', timeout: 30000 },
+      environment,
+      `${environment.gatewayUrl}/plan-service`
     );
+  }
+
+  /**
+   * Helper method to make authenticated HTTP requests
+   */
+  private async makeAuthenticatedRequest<T>(
+    method: 'get' | 'post' | 'put' | 'delete',
+    url: string,
+    data?: any,
+    config?: any
+  ): Promise<{ data: T; status: number; statusText: string }> {
+    try {
+      const authHeader = await this.authService.getAuthHeader();
+      const authConfig = withAuth(
+        config || {},
+        authHeader.Authorization.replace('Bearer ', '')
+      );
+
+      switch (method) {
+        case 'get':
+          return await this.httpClient.get<T>(url, authConfig);
+        case 'post':
+          return await this.httpClient.post<T>(url, data, authConfig);
+        case 'put':
+          return await this.httpClient.put<T>(url, data, authConfig);
+        case 'delete':
+          return await this.httpClient.delete<T>(url, authConfig);
+        default:
+          throw new Error(`Unsupported HTTP method: ${method}`);
+      }
+    } catch (error) {
+      throw this.handleError(error);
+    }
   }
 
   /**
    * Create a new payment plan
    */
   async createPlan(request: CreatePlanRequest): Promise<Plan> {
-    const response = await this.httpClient.post<Plan>('/plan', request);
+    const response = await this.makeAuthenticatedRequest<Plan>(
+      'post',
+      '/plan',
+      request
+    );
     return response.data;
   }
 
@@ -62,7 +79,10 @@ export class PlanService {
    * Retrieve a specific plan by lookup ID
    */
   async getPlan(planLookupId: string): Promise<Plan> {
-    const response = await this.httpClient.get<Plan>(`/plan/${planLookupId}`);
+    const response = await this.makeAuthenticatedRequest<Plan>(
+      'get',
+      `/plan/${planLookupId}`
+    );
     return response.data;
   }
 
@@ -73,7 +93,8 @@ export class PlanService {
     planLookupId: string,
     request: UpdatePlanRequest
   ): Promise<Plan> {
-    const response = await this.httpClient.put<Plan>(
+    const response = await this.makeAuthenticatedRequest<Plan>(
+      'put',
       `/plan/${planLookupId}`,
       request
     );
@@ -84,14 +105,20 @@ export class PlanService {
    * Delete a plan
    */
   async deletePlan(planLookupId: string): Promise<void> {
-    await this.httpClient.delete(`/plan/${planLookupId}`);
+    await this.makeAuthenticatedRequest<void>(
+      'delete',
+      `/plan/${planLookupId}`
+    );
   }
 
   /**
    * List all plans
    */
   async listPlans(): Promise<PlanListResponse> {
-    const response = await this.httpClient.get<PlanListResponse>('/plan');
+    const response = await this.makeAuthenticatedRequest<PlanListResponse>(
+      'get',
+      '/plan'
+    );
     return response.data;
   }
 

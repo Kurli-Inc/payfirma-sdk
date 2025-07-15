@@ -57,39 +57,3 @@ export function transformKeysToCamel(obj: any): any {
 
   return transformed;
 }
-
-/**
- * Axios request transformer - converts camelCase to snake_case
- */
-export function requestTransformer(data: any): any {
-  if (!data) return data;
-
-  // If data is a string (JSON), parse it first
-  if (typeof data === 'string') {
-    try {
-      data = JSON.parse(data);
-    } catch {
-      return data;
-    }
-  }
-
-  return JSON.stringify(transformKeysToSnake(data));
-}
-
-/**
- * Axios response transformer - converts snake_case to camelCase
- */
-export function responseTransformer(data: any): any {
-  if (!data) return data;
-
-  // If data is a string, parse it first
-  if (typeof data === 'string') {
-    try {
-      data = JSON.parse(data);
-    } catch {
-      return data;
-    }
-  }
-
-  return transformKeysToCamel(data);
-}

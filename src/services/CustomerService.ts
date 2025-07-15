@@ -2,8 +2,7 @@
  * Customer service for managing customers, cards, and subscriptions
  */
 
-import { AxiosInstance } from 'axios';
-import { createApiClient } from '../utils/apiClient';
+import { HttpClient, createApiClient, withAuth } from '../utils/apiClient';
 import { AuthService } from './AuthService';
 import { Environment } from '../types/common';
 import {
@@ -25,7 +24,7 @@ import { ErrorFactory, PayfirmaError } from '../types/errors';
  * Customer service for managing customers, cards, and subscriptions
  */
 export class CustomerService {
-  private httpClient: AxiosInstance;
+  private httpClient: HttpClient;
   private authService: AuthService;
 
   constructor(environment: Environment, authService: AuthService) {
@@ -36,23 +35,39 @@ export class CustomerService {
       environment,
       `${environment.gatewayUrl}/customer-service`
     );
+  }
 
-    // Add request interceptor to include auth header
-    this.httpClient.interceptors.request.use(async config => {
+  /**
+   * Helper method to make authenticated HTTP requests
+   */
+  private async makeAuthenticatedRequest<T>(
+    method: 'get' | 'post' | 'put' | 'delete',
+    url: string,
+    data?: any,
+    config?: any
+  ): Promise<{ data: T; status: number; statusText: string }> {
+    try {
       const authHeader = await this.authService.getAuthHeader();
-      if (config.headers) {
-        config.headers['Authorization'] = authHeader.Authorization;
-      }
-      return config;
-    });
+      const authConfig = withAuth(
+        config || {},
+        authHeader.Authorization.replace('Bearer ', '')
+      );
 
-    // Add response interceptor to handle errors
-    this.httpClient.interceptors.response.use(
-      response => response,
-      error => {
-        throw this.handleError(error);
+      switch (method) {
+        case 'get':
+          return await this.httpClient.get<T>(url, authConfig);
+        case 'post':
+          return await this.httpClient.post<T>(url, data, authConfig);
+        case 'put':
+          return await this.httpClient.put<T>(url, data, authConfig);
+        case 'delete':
+          return await this.httpClient.delete<T>(url, authConfig);
+        default:
+          throw new Error(`Unsupported HTTP method: ${method}`);
       }
-    );
+    } catch (error) {
+      throw this.handleError(error);
+    }
   }
 
   // Customer Management
@@ -61,7 +76,11 @@ export class CustomerService {
    * Create a new customer
    */
   async createCustomer(request: CreateCustomerRequest): Promise<Customer> {
-    const response = await this.httpClient.post<Customer>('/customer', request);
+    const response = await this.makeAuthenticatedRequest<Customer>(
+      'post',
+      '/customer',
+      request
+    );
     return response.data;
   }
 
@@ -69,7 +88,8 @@ export class CustomerService {
    * Retrieve a specific customer by lookup ID
    */
   async getCustomer(customerLookupId: string): Promise<Customer> {
-    const response = await this.httpClient.get<Customer>(
+    const response = await this.makeAuthenticatedRequest<Customer>(
+      'get',
       `/customer/${customerLookupId}`
     );
     return response.data;
@@ -82,7 +102,8 @@ export class CustomerService {
     customerLookupId: string,
     request: UpdateCustomerRequest
   ): Promise<Customer> {
-    const response = await this.httpClient.put<Customer>(
+    const response = await this.makeAuthenticatedRequest<Customer>(
+      'put',
       `/customer/${customerLookupId}`,
       request
     );
@@ -95,8 +116,10 @@ export class CustomerService {
   async listCustomers(
     params?: CustomerSearchParams
   ): Promise<CustomerListResponse> {
-    const response = await this.httpClient.get<CustomerListResponse>(
+    const response = await this.makeAuthenticatedRequest<CustomerListResponse>(
+      'get',
       '/customer',
+      undefined,
       { params }
     );
     return response.data;
@@ -109,8 +132,10 @@ export class CustomerService {
     planLookupId: string,
     params?: CustomerSearchParams
   ): Promise<CustomerListResponse> {
-    const response = await this.httpClient.get<CustomerListResponse>(
+    const response = await this.makeAuthenticatedRequest<CustomerListResponse>(
+      'get',
       `/customer/plan/${planLookupId}`,
+      undefined,
       { params }
     );
     return response.data;
@@ -122,7 +147,8 @@ export class CustomerService {
    * Add a new card to a customer
    */
   async addCard(customerLookupId: string, request: CardRequest): Promise<Card> {
-    const response = await this.httpClient.post<Card>(
+    const response = await this.makeAuthenticatedRequest<Card>(
+      'post',
       `/customer/${customerLookupId}/card`,
       request
     );
@@ -137,7 +163,8 @@ export class CustomerService {
     cardLookupId: string,
     request: UpdateCardRequest
   ): Promise<Card> {
-    const response = await this.httpClient.put<Card>(
+    const response = await this.makeAuthenticatedRequest<Card>(
+      'put',
       `/customer/${customerLookupId}/card/${cardLookupId}`,
       request
     );
@@ -151,7 +178,8 @@ export class CustomerService {
     customerLookupId: string,
     cardLookupId: string
   ): Promise<void> {
-    await this.httpClient.delete(
+    await this.makeAuthenticatedRequest<void>(
+      'delete',
       `/customer/${customerLookupId}/card/${cardLookupId}`
     );
   }
@@ -164,7 +192,8 @@ export class CustomerService {
     amount: number,
     currency: string = 'CAD'
   ): Promise<any> {
-    const response = await this.httpClient.post(
+    const response = await this.makeAuthenticatedRequest<any>(
+      'post',
       `/customer/${customerLookupId}/charge`,
       { amount, currency }
     );
@@ -180,7 +209,8 @@ export class CustomerService {
     amount: number,
     currency: string = 'CAD'
   ): Promise<any> {
-    const response = await this.httpClient.post(
+    const response = await this.makeAuthenticatedRequest<any>(
+      'post',
       `/customer/${customerLookupId}/card/${cardLookupId}/charge`,
       { amount, currency }
     );
@@ -196,7 +226,8 @@ export class CustomerService {
     customerLookupId: string,
     request: CreateSubscriptionRequest
   ): Promise<Subscription> {
-    const response = await this.httpClient.post<Subscription>(
+    const response = await this.makeAuthenticatedRequest<Subscription>(
+      'post',
       `/customer/${customerLookupId}/subscription`,
       request
     );
@@ -211,7 +242,8 @@ export class CustomerService {
     subscriptionLookupId: string,
     request: UpdateSubscriptionRequest
   ): Promise<Subscription> {
-    const response = await this.httpClient.put<Subscription>(
+    const response = await this.makeAuthenticatedRequest<Subscription>(
+      'put',
       `/customer/${customerLookupId}/subscription/${subscriptionLookupId}`,
       request
     );
@@ -225,7 +257,8 @@ export class CustomerService {
     customerLookupId: string,
     subscriptionLookupId: string
   ): Promise<void> {
-    await this.httpClient.delete(
+    await this.makeAuthenticatedRequest<void>(
+      'delete',
       `/customer/${customerLookupId}/subscription/${subscriptionLookupId}`
     );
   }
@@ -237,7 +270,8 @@ export class CustomerService {
     customerLookupId: string,
     subscriptionLookupId: string
   ): Promise<Subscription> {
-    const response = await this.httpClient.get<Subscription>(
+    const response = await this.makeAuthenticatedRequest<Subscription>(
+      'get',
       `/customer/${customerLookupId}/subscription/${subscriptionLookupId}`
     );
     return response.data;

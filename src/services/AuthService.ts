@@ -2,7 +2,7 @@
  * Authentication service for managing OAuth 2.0 tokens
  */
 
-import { AxiosInstance } from 'axios';
+import { HttpClient } from '../utils/apiClient';
 import {
   TokenResponse,
   ClientCredentialsRequest,
@@ -26,7 +26,7 @@ import { createAuthClient } from '../utils/apiClient';
 export class AuthService {
   private config: PayfirmaSDKConfig;
   private environment: Environment;
-  private httpClient: AxiosInstance;
+  private httpClient: HttpClient;
   private credentials: AuthCredentials | null = null;
   private tokenRefreshPromise: Promise<AuthCredentials> | null = null;
 

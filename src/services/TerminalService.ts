@@ -2,7 +2,7 @@
  * Terminal service for card terminal integration
  */
 
-import axios, { AxiosInstance } from 'axios';
+import { HttpClient, createApiClient, withAuth } from '../utils/apiClient';
 import { AuthService } from './AuthService';
 import { Environment } from '../types/common';
 import {
@@ -20,37 +20,50 @@ import { ErrorFactory, PayfirmaError } from '../types/errors';
  * Terminal service for card terminal integration
  */
 export class TerminalService {
-  private httpClient: AxiosInstance;
+  private httpClient: HttpClient;
   private authService: AuthService;
 
   constructor(environment: Environment, authService: AuthService) {
     this.authService = authService;
 
-    this.httpClient = axios.create({
-      baseURL: `${environment.gatewayUrl}/terminal-service`,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Payfirma-SDK-TypeScript/1.0.0',
-      },
-    });
-
-    // Add request interceptor to include auth header
-    this.httpClient.interceptors.request.use(async config => {
-      const authHeader = await this.authService.getAuthHeader();
-      if (config.headers) {
-        config.headers['Authorization'] = authHeader.Authorization;
-      }
-      return config;
-    });
-
-    // Add response interceptor to handle errors
-    this.httpClient.interceptors.response.use(
-      response => response,
-      error => {
-        throw this.handleError(error);
-      }
+    this.httpClient = createApiClient(
+      { clientId: '', clientSecret: '', timeout: 30000 },
+      environment,
+      `${environment.gatewayUrl}/terminal-service`
     );
+  }
+
+  /**
+   * Helper method to make authenticated HTTP requests
+   */
+  private async makeAuthenticatedRequest<T>(
+    method: 'get' | 'post' | 'put' | 'delete',
+    url: string,
+    data?: any,
+    config?: any
+  ): Promise<{ data: T; status: number; statusText: string }> {
+    try {
+      const authHeader = await this.authService.getAuthHeader();
+      const authConfig = withAuth(
+        config || {},
+        authHeader.Authorization.replace('Bearer ', '')
+      );
+
+      switch (method) {
+        case 'get':
+          return await this.httpClient.get<T>(url, authConfig);
+        case 'post':
+          return await this.httpClient.post<T>(url, data, authConfig);
+        case 'put':
+          return await this.httpClient.put<T>(url, data, authConfig);
+        case 'delete':
+          return await this.httpClient.delete<T>(url, authConfig);
+        default:
+          throw new Error(`Unsupported HTTP method: ${method}`);
+      }
+    } catch (error) {
+      throw this.handleError(error);
+    }
   }
 
   /**
@@ -59,7 +72,8 @@ export class TerminalService {
   async saleWithCustomer(
     request: TerminalSaleWithCustomerRequest
   ): Promise<TerminalTransaction> {
-    const response = await this.httpClient.post<TerminalTransaction>(
+    const response = await this.makeAuthenticatedRequest<TerminalTransaction>(
+      'post',
       '/sale/customer',
       request
     );
@@ -70,7 +84,8 @@ export class TerminalService {
    * Process a sale without customer lookup
    */
   async sale(request: TerminalSaleRequest): Promise<TerminalTransaction> {
-    const response = await this.httpClient.post<TerminalTransaction>(
+    const response = await this.makeAuthenticatedRequest<TerminalTransaction>(
+      'post',
       '/sale',
       request
     );
@@ -81,7 +96,8 @@ export class TerminalService {
    * Process a refund
    */
   async refund(request: TerminalRefundRequest): Promise<TerminalTransaction> {
-    const response = await this.httpClient.post<TerminalTransaction>(
+    const response = await this.makeAuthenticatedRequest<TerminalTransaction>(
+      'post',
       '/refund',
       request
     );
@@ -94,7 +110,8 @@ export class TerminalService {
   async authorize(
     request: TerminalAuthorizationRequest
   ): Promise<TerminalTransaction> {
-    const response = await this.httpClient.post<TerminalTransaction>(
+    const response = await this.makeAuthenticatedRequest<TerminalTransaction>(
+      'post',
       '/authorize',
       request
     );
@@ -108,7 +125,8 @@ export class TerminalService {
     transactionId: string,
     request: TerminalCaptureRequest
   ): Promise<TerminalTransaction> {
-    const response = await this.httpClient.post<TerminalTransaction>(
+    const response = await this.makeAuthenticatedRequest<TerminalTransaction>(
+      'post',
       `/capture/${transactionId}`,
       request
     );
@@ -119,7 +137,8 @@ export class TerminalService {
    * Get terminal transaction details
    */
   async getTransaction(transactionId: string): Promise<TerminalTransaction> {
-    const response = await this.httpClient.get<TerminalTransaction>(
+    const response = await this.makeAuthenticatedRequest<TerminalTransaction>(
+      'get',
       `/transaction/${transactionId}`
     );
     return response.data;
@@ -129,7 +148,8 @@ export class TerminalService {
    * Get terminal configuration
    */
   async getTerminalConfig(terminalId: string): Promise<TerminalConfig> {
-    const response = await this.httpClient.get<TerminalConfig>(
+    const response = await this.makeAuthenticatedRequest<TerminalConfig>(
+      'get',
       `/terminal/${terminalId}/config`
     );
     return response.data;
@@ -142,7 +162,8 @@ export class TerminalService {
     terminalId: string,
     config: Partial<TerminalConfig>
   ): Promise<TerminalConfig> {
-    const response = await this.httpClient.put<TerminalConfig>(
+    const response = await this.makeAuthenticatedRequest<TerminalConfig>(
+      'put',
       `/terminal/${terminalId}/config`,
       config
     );
@@ -168,7 +189,10 @@ export class TerminalService {
    * List all terminals
    */
   async listTerminals(): Promise<TerminalConfig[]> {
-    const response = await this.httpClient.get<TerminalConfig[]>('/terminals');
+    const response = await this.makeAuthenticatedRequest<TerminalConfig[]>(
+      'get',
+      '/terminals'
+    );
     return response.data;
   }
 
@@ -210,8 +234,10 @@ export class TerminalService {
     date?: string
   ): Promise<TerminalTransaction[]> {
     const params = date ? { date } : {};
-    const response = await this.httpClient.get<TerminalTransaction[]>(
+    const response = await this.makeAuthenticatedRequest<TerminalTransaction[]>(
+      'get',
       `/terminal/${terminalId}/transactions`,
+      undefined,
       { params }
     );
     return response.data;

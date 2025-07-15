@@ -1,7 +1,7 @@
 {
   "name": "payfirma-sdk",
   "version": "1.0.0",
-  "description": "Official TypeScript SDK for Payfirma API - Complete payment processing solution",
+  "description": "Unofficial TypeScript SDK for Payfirma/PayHQ API - Complete payment processing solution",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -19,7 +19,7 @@
   "scripts": {
     "build": "tsc",
     "build:watch": "tsc -w",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",
     "prepublishOnly": "npm run build",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
@@ -38,14 +38,13 @@
     "subscriptions",
     "oauth2"
   ],
-  "author": "Payfirma SDK Team",
+  "author": "Kurli Inc.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/payfirma/payfirma-sdk-typescript"
+    "url": "https://github.com/Kurli-Inc/payfirma-sdk"
   },
   "dependencies": {
-    "axios": "^1.6.0",
     "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {

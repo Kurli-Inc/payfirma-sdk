@@ -2,7 +2,7 @@
  * Transaction service for payment processing
  */
 
-import axios, { AxiosInstance } from 'axios';
+import { HttpClient, createApiClient, withAuth } from '../utils/apiClient';
 import { AuthService } from './AuthService';
 import { Environment } from '../types/common';
 import {
@@ -21,37 +21,51 @@ import { ErrorFactory, PayfirmaError } from '../types/errors';
  * Transaction service for payment processing
  */
 export class TransactionService {
-  private httpClient: AxiosInstance;
+  private httpClient: HttpClient;
   private authService: AuthService;
 
   constructor(environment: Environment, authService: AuthService) {
     this.authService = authService;
 
-    this.httpClient = axios.create({
-      baseURL: `${environment.gatewayUrl}/transaction-service`,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Payfirma-SDK-TypeScript/1.0.0',
-      },
-    });
-
-    // Add request interceptor to include auth header
-    this.httpClient.interceptors.request.use(async config => {
-      const authHeader = await this.authService.getAuthHeader();
-      if (config.headers) {
-        config.headers['Authorization'] = authHeader.Authorization;
-      }
-      return config;
-    });
-
-    // Add response interceptor to handle errors
-    this.httpClient.interceptors.response.use(
-      response => response,
-      error => {
-        throw this.handleError(error);
-      }
+    this.httpClient = createApiClient(
+      { timeout: 30000 } as any,
+      environment,
+      `${environment.gatewayUrl}/transaction-service`
     );
+  }
+
+  /**
+   * Helper method to make authenticated HTTP requests
+   */
+
+  private async makeAuthenticatedRequest<T>(
+    method: 'get' | 'post' | 'put' | 'delete',
+    url: string,
+    data?: any,
+    config?: any
+  ): Promise<{ data: T; status: number; statusText: string }> {
+    try {
+      const authHeader = await this.authService.getAuthHeader();
+      const authConfig = withAuth(
+        config || {},
+        authHeader.Authorization.replace('Bearer ', '')
+      );
+
+      switch (method) {
+        case 'get':
+          return await this.httpClient.get<T>(url, authConfig);
+        case 'post':
+          return await this.httpClient.post<T>(url, data, authConfig);
+        case 'put':
+          return await this.httpClient.put<T>(url, data, authConfig);
+        case 'delete':
+          return await this.httpClient.delete<T>(url, authConfig);
+        default:
+          throw new Error(`Unsupported HTTP method: ${method}`);
+      }
+    } catch (error) {
+      throw this.handleError(error);
+    }
   }
 
   // Payment Processing
@@ -60,7 +74,11 @@ export class TransactionService {
    * Process a sale transaction
    */
   async createSale(request: SaleTransactionRequest): Promise<Transaction> {
-    const response = await this.httpClient.post<Transaction>('/sale', request);
+    const response = await this.makeAuthenticatedRequest<Transaction>(
+      'post',
+      '/sale',
+      request
+    );
     return response.data;
   }
 
@@ -70,7 +88,8 @@ export class TransactionService {
   async createAuthorization(
     request: AuthorizationTransactionRequest
   ): Promise<Transaction> {
-    const response = await this.httpClient.post<Transaction>(
+    const response = await this.makeAuthenticatedRequest<Transaction>(
+      'post',
       '/authorize',
       request
     );
@@ -84,7 +103,8 @@ export class TransactionService {
     transactionId: string,
     request: CaptureTransactionRequest
   ): Promise<Transaction> {
-    const response = await this.httpClient.post<Transaction>(
+    const response = await this.makeAuthenticatedRequest<Transaction>(
+      'post',
       `/capture/${transactionId}`,
       request
     );
@@ -98,7 +118,8 @@ export class TransactionService {
     transactionId: string,
     request: RefundTransactionRequest
   ): Promise<Transaction> {
-    const response = await this.httpClient.post<Transaction>(
+    const response = await this.makeAuthenticatedRequest<Transaction>(
+      'post',
       `/refund/${transactionId}`,
       request
     );
@@ -109,7 +130,8 @@ export class TransactionService {
    * Get transaction details
    */
   async getTransaction(transactionId: string): Promise<Transaction> {
-    const response = await this.httpClient.get<Transaction>(
+    const response = await this.makeAuthenticatedRequest<Transaction>(
+      'get',
       `/transaction/${transactionId}`
     );
     return response.data;
@@ -121,10 +143,13 @@ export class TransactionService {
   async listTransactions(
     params?: TransactionSearchParams
   ): Promise<TransactionListResponse> {
-    const response = await this.httpClient.get<TransactionListResponse>(
-      '/transaction',
-      { params }
-    );
+    const response =
+      await this.makeAuthenticatedRequest<TransactionListResponse>(
+        'get',
+        '/transaction',
+        undefined,
+        { params }
+      );
     return response.data;
   }
 

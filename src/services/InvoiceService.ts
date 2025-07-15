@@ -2,7 +2,7 @@
  * Invoice service for managing invoices
  */
 
-import axios, { AxiosInstance } from 'axios';
+import { HttpClient, createApiClient, withAuth } from '../utils/apiClient';
 import { AuthService } from './AuthService';
 import { Environment } from '../types/common';
 import {
@@ -20,44 +20,61 @@ import { ErrorFactory, PayfirmaError } from '../types/errors';
  * Invoice service for managing invoices
  */
 export class InvoiceService {
-  private httpClient: AxiosInstance;
+  private httpClient: HttpClient;
   private authService: AuthService;
 
   constructor(environment: Environment, authService: AuthService) {
     this.authService = authService;
 
-    this.httpClient = axios.create({
-      baseURL: `${environment.gatewayUrl}/invoice-service`,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Payfirma-SDK-TypeScript/1.0.0',
-      },
-    });
-
-    // Add request interceptor to include auth header
-    this.httpClient.interceptors.request.use(async config => {
-      const authHeader = await this.authService.getAuthHeader();
-      if (config.headers) {
-        config.headers['Authorization'] = authHeader.Authorization;
-      }
-      return config;
-    });
-
-    // Add response interceptor to handle errors
-    this.httpClient.interceptors.response.use(
-      response => response,
-      error => {
-        throw this.handleError(error);
-      }
+    this.httpClient = createApiClient(
+      { clientId: '', clientSecret: '', timeout: 30000 },
+      environment,
+      `${environment.gatewayUrl}/invoice-service`
     );
+  }
+
+  /**
+   * Helper method to make authenticated HTTP requests
+   */
+  private async makeAuthenticatedRequest<T>(
+    method: 'get' | 'post' | 'put' | 'delete',
+    url: string,
+    data?: any,
+    config?: any
+  ): Promise<{ data: T; status: number; statusText: string }> {
+    try {
+      const authHeader = await this.authService.getAuthHeader();
+      const authConfig = withAuth(
+        config || {},
+        authHeader.Authorization.replace('Bearer ', '')
+      );
+
+      switch (method) {
+        case 'get':
+          return await this.httpClient.get<T>(url, authConfig);
+        case 'post':
+          return await this.httpClient.post<T>(url, data, authConfig);
+        case 'put':
+          return await this.httpClient.put<T>(url, data, authConfig);
+        case 'delete':
+          return await this.httpClient.delete<T>(url, authConfig);
+        default:
+          throw new Error(`Unsupported HTTP method: ${method}`);
+      }
+    } catch (error) {
+      throw this.handleError(error);
+    }
   }
 
   /**
    * Create a new invoice
    */
   async createInvoice(request: CreateInvoiceRequest): Promise<Invoice> {
-    const response = await this.httpClient.post<Invoice>('/invoice', request);
+    const response = await this.makeAuthenticatedRequest<Invoice>(
+      'post',
+      '/invoice',
+      request
+    );
     return response.data;
   }
 
@@ -73,7 +90,8 @@ export class InvoiceService {
    * Get invoice by ID
    */
   async getInvoice(invoiceId: string): Promise<Invoice> {
-    const response = await this.httpClient.get<Invoice>(
+    const response = await this.makeAuthenticatedRequest<Invoice>(
+      'get',
       `/invoice/${invoiceId}`
     );
     return response.data;
@@ -86,7 +104,8 @@ export class InvoiceService {
     invoiceId: string,
     request: UpdateInvoiceRequest
   ): Promise<Invoice> {
-    const response = await this.httpClient.put<Invoice>(
+    const response = await this.makeAuthenticatedRequest<Invoice>(
+      'put',
       `/invoice/${invoiceId}`,
       request
     );
@@ -97,7 +116,10 @@ export class InvoiceService {
    * Delete an invoice
    */
   async deleteInvoice(invoiceId: string): Promise<void> {
-    await this.httpClient.delete(`/invoice/${invoiceId}`);
+    await this.makeAuthenticatedRequest<void>(
+      'delete',
+      `/invoice/${invoiceId}`
+    );
   }
 
   /**
@@ -106,8 +128,10 @@ export class InvoiceService {
   async listInvoices(
     params?: InvoiceSearchParams
   ): Promise<InvoiceListResponse> {
-    const response = await this.httpClient.get<InvoiceListResponse>(
+    const response = await this.makeAuthenticatedRequest<InvoiceListResponse>(
+      'get',
       '/invoice',
+      undefined,
       { params }
     );
     return response.data;
@@ -120,7 +144,11 @@ export class InvoiceService {
     invoiceId: string,
     request: SendInvoiceEmailRequest
   ): Promise<void> {
-    await this.httpClient.post(`/invoice/${invoiceId}/send`, request);
+    await this.makeAuthenticatedRequest<any>(
+      'post',
+      `/invoice/${invoiceId}/send`,
+      request
+    );
   }
 
   /**
@@ -329,9 +357,9 @@ export class InvoiceService {
     }
   ): Promise<Invoice> {
     const currency = options?.currency || 'CAD';
-    const taxRate = options?.taxRate || 0;
-    const discountAmount = options?.discountAmount || 0;
-    const shippingAmount = options?.shippingAmount || 0;
+    const taxRate = options?.taxRate ?? 0;
+    const discountAmount = options?.discountAmount ?? 0;
+    const shippingAmount = options?.shippingAmount ?? 0;
 
     const invoiceItems = items.map(item => ({
       ...item,

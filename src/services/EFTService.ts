@@ -2,7 +2,7 @@
  * EFT service for electronic funds transfer operations
  */
 
-import axios, { AxiosInstance } from 'axios';
+import { HttpClient, createApiClient, withAuth } from '../utils/apiClient';
 import { AuthService } from './AuthService';
 import { Environment } from '../types/common';
 import {
@@ -20,44 +20,60 @@ import { ErrorFactory, PayfirmaError } from '../types/errors';
  * EFT service for electronic funds transfer operations
  */
 export class EFTService {
-  private httpClient: AxiosInstance;
+  private httpClient: HttpClient;
   private authService: AuthService;
 
   constructor(environment: Environment, authService: AuthService) {
     this.authService = authService;
 
-    this.httpClient = axios.create({
-      baseURL: `${environment.gatewayUrl}/eft-service`,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Payfirma-SDK-TypeScript/1.0.0',
-      },
-    });
-
-    // Add request interceptor to include auth header
-    this.httpClient.interceptors.request.use(async config => {
-      const authHeader = await this.authService.getAuthHeader();
-      if (config.headers) {
-        config.headers['Authorization'] = authHeader.Authorization;
-      }
-      return config;
-    });
-
-    // Add response interceptor to handle errors
-    this.httpClient.interceptors.response.use(
-      response => response,
-      error => {
-        throw this.handleError(error);
-      }
+    this.httpClient = createApiClient(
+      { clientId: '', clientSecret: '', timeout: 30000 },
+      environment,
+      `${environment.gatewayUrl}/eft-service`
     );
+  }
+
+  /**
+   * Helper method to make authenticated HTTP requests
+   */
+  private async makeAuthenticatedRequest<T>(
+    method: 'get' | 'post' | 'put' | 'delete',
+    url: string,
+    data?: any,
+    config?: any
+  ): Promise<{ data: T; status: number; statusText: string }> {
+    try {
+      const authHeader = await this.authService.getAuthHeader();
+      const authConfig = withAuth(
+        config || {},
+        authHeader.Authorization.replace('Bearer ', '')
+      );
+
+      switch (method) {
+        case 'get':
+          return await this.httpClient.get<T>(url, authConfig);
+        case 'post':
+          return await this.httpClient.post<T>(url, data, authConfig);
+        case 'put':
+          return await this.httpClient.put<T>(url, data, authConfig);
+        case 'delete':
+          return await this.httpClient.delete<T>(url, authConfig);
+        default:
+          throw new Error(`Unsupported HTTP method: ${method}`);
+      }
+    } catch (error) {
+      throw this.handleError(error);
+    }
   }
 
   /**
    * Get account balance
    */
   async getBalance(): Promise<EFTBalance> {
-    const response = await this.httpClient.get<EFTBalance>('/balance');
+    const response = await this.makeAuthenticatedRequest<EFTBalance>(
+      'get',
+      '/balance'
+    );
     return response.data;
   }
 
@@ -65,7 +81,8 @@ export class EFTService {
    * Process an EFT debit (incoming funds)
    */
   async processDebit(request: EFTDebitRequest): Promise<EFTTransaction> {
-    const response = await this.httpClient.post<EFTTransaction>(
+    const response = await this.makeAuthenticatedRequest<EFTTransaction>(
+      'post',
       '/debit',
       request
     );
@@ -76,7 +93,8 @@ export class EFTService {
    * Process an EFT credit (outgoing funds)
    */
   async processCredit(request: EFTCreditRequest): Promise<EFTTransaction> {
-    const response = await this.httpClient.post<EFTTransaction>(
+    const response = await this.makeAuthenticatedRequest<EFTTransaction>(
+      'post',
       '/credit',
       request
     );
@@ -87,7 +105,8 @@ export class EFTService {
    * Make a bank deposit
    */
   async bankDeposit(request: BankDepositRequest): Promise<EFTTransaction> {
-    const response = await this.httpClient.post<EFTTransaction>(
+    const response = await this.makeAuthenticatedRequest<EFTTransaction>(
+      'post',
       '/deposit',
       request
     );
@@ -98,7 +117,8 @@ export class EFTService {
    * Get EFT transaction details
    */
   async getTransaction(transactionId: string): Promise<EFTTransaction> {
-    const response = await this.httpClient.get<EFTTransaction>(
+    const response = await this.makeAuthenticatedRequest<EFTTransaction>(
+      'get',
       `/transaction/${transactionId}`
     );
     return response.data;
@@ -110,10 +130,13 @@ export class EFTService {
   async listTransactions(
     params?: EFTTransactionSearchParams
   ): Promise<EFTTransactionListResponse> {
-    const response = await this.httpClient.get<EFTTransactionListResponse>(
-      '/transactions',
-      { params }
-    );
+    const response =
+      await this.makeAuthenticatedRequest<EFTTransactionListResponse>(
+        'get',
+        '/transactions',
+        undefined,
+        { params }
+      );
     return response.data;
   }
 
